@@ -124,79 +124,87 @@
 
         /* 优化关节角度卡片样式 */
         .finger-card {
-            background: white;
-            border-radius: 12px;
-            padding: 15px;
-            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            background: var(--gray-100);
+            border-radius: 10px;
+            padding: 12px;
         }
 
         .finger-title {
+            font-size: 0.9em;
+            font-weight: 600;
+            color: var(--gray-600);
             text-align: center;
-            font-size: 16px;
-            font-weight: bold;
-            margin-bottom: 15px;
-            color: #333;
+            padding-bottom: 8px;
+            margin-bottom: 12px;
+            border-bottom: 2px solid var(--primary-color);
         }
 
         .joint-data {
             display: flex;
             flex-direction: column;
-            gap: 15px;
+            gap: 10px;
         }
 
         .joint-item {
+            background: white;
+            border-radius: 6px;
+            padding: 8px;
+            box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+        }
+
+        .joint-header {
             display: flex;
-            flex-direction: column;
+            justify-content: space-between;
             align-items: center;
+            margin-bottom: 6px;
         }
 
-        .progress-circle {
-            position: relative;
-            width: 80px;
-            height: 80px;
+        .joint-name {
+            font-size: 0.75em;
+            color: var(--gray-600);
         }
 
-        .progress-ring {
-            transform: rotate(-90deg);
-            width: 80px;
-            height: 80px;
+        .joint-value {
+            font-size: 0.85em;
+            font-weight: 600;
+            color: var(--primary-color);
         }
 
-        .progress-ring-circle-bg {
-            fill: none;
-            stroke: #edf2f7;
-            stroke-width: 8;
-        }
-
-        .progress-ring-circle {
-            fill: none;
-            stroke-width: 8;
-            stroke-linecap: round;
-            transition: stroke-dashoffset 0.3s ease;
-        }
-
-        .progress-ring-circle.flexion {
-            stroke: #4CAF50;
-        }
-
-        .progress-ring-circle.abduction {
-            stroke: #2196F3;
+        .angle-bar {
+            height: 4px;
+            background: var(--gray-200);
+            border-radius: 2px;
+            overflow: hidden;
         }
 
         .angle-value {
-            position: absolute;
-            top: 50%;
-            left: 50%;
-            transform: translate(-50%, -50%);
-            font-size: 14px;
-            font-weight: bold;
-            color: #333;
+            height: 100%;
+            transition: width 0.3s ease;
         }
 
-        .joint-label {
-            margin-top: 5px;
-            font-size: 12px;
-            color: #666;
+        .angle-value.flexion {
+            background: var(--success-color);
+        }
+
+        .angle-value.abduction {
+            background: var(--primary-color);
+        }
+
+        .movement-tag {
+            font-size: 0.65em;
+            padding: 1px 4px;
+            border-radius: 3px;
+            margin-left: 4px;
+        }
+
+        .movement-tag.flexion {
+            background: var(--success-color);
+            color: white;
+        }
+
+        .movement-tag.abduction {
+            background: var(--primary-color);
+            color: white;
         }
 
         /* 统计数据样式 */
@@ -310,35 +318,6 @@
         ::-webkit-scrollbar-thumb:hover {
             background: #555;
         }
-
-        /* 手指关节数据容器 */
-        .joint-data-container {
-            display: grid;
-            grid-template-columns: repeat(5, 1fr);
-            gap: 15px;
-            padding: 20px;
-            background: #f8f9fa;
-            border-radius: 15px;
-            margin-top: 20px;
-        }
-
-        /* 关节类型标签 */
-        .movement-type {
-            font-size: 10px;
-            padding: 2px 8px;
-            border-radius: 10px;
-            margin-top: 5px;
-        }
-
-        .movement-type.flexion {
-            background: #E8F5E9;
-            color: #4CAF50;
-        }
-
-        .movement-type.abduction {
-            background: #E3F2FD;
-            color: #2196F3;
-        }
     </style>
 </head>
 
@@ -396,55 +375,7 @@
                     <span class="data-indicator" id="angles-indicator"></span>
                 </div>
             </div>
-            <div class="joint-data-container">
-                <!-- 拇指 -->
-                <div class="finger-card">
-                    <div class="finger-title">拇指</div>
-                    <div class="joint-data">
-                        <!-- 屈曲角度 -->
-                        <div class="joint-item">
-                            <div class="progress-circle" id="thumb-flexion">
-                                <svg class="progress-ring">
-                                    <circle class="progress-ring-circle-bg" cx="40" cy="40" r="32"></circle>
-                                    <circle class="progress-ring-circle flexion" cx="40" cy="40" r="32"></circle>
-                                </svg>
-                                <div class="angle-value">0°</div>
-                            </div>
-                            <div class="joint-label">屈曲</div>
-                        </div>
-                        <!-- 外展角度 -->
-                        <div class="joint-item">
-                            <div class="progress-circle" id="thumb-abduction">
-                                <svg class="progress-ring">
-                                    <circle class="progress-ring-circle-bg" cx="40" cy="40" r="32"></circle>
-                                    <circle class="progress-ring-circle abduction" cx="40" cy="40" r="32"></circle>
-                                </svg>
-                                <div class="angle-value">0°</div>
-                            </div>
-                            <div class="joint-label">外展</div>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- 食指 -->
-                <div class="finger-card">
-                    <div class="finger-title">食指</div>
-                    <div class="joint-data">
-                        <div class="joint-item">
-                            <div class="progress-circle" id="index-flexion">
-                                <svg class="progress-ring">
-                                    <circle class="progress-ring-circle-bg" cx="40" cy="40" r="32"></circle>
-                                    <circle class="progress-ring-circle flexion" cx="40" cy="40" r="32"></circle>
-                                </svg>
-                                <div class="angle-value">0°</div>
-                            </div>
-                            <div class="joint-label">屈曲</div>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- 其他手指类似... -->
-            </div>
+            <div class="angles-container" id="angles-display"></div>
         </div>
     </div>
 
@@ -569,14 +500,19 @@
 
                                 html += `
                                     <div class="joint-item">
-                                        <div class="progress-circle" id="${finger}-${movement}">
-                                            <svg class="progress-ring">
-                                                <circle class="progress-ring-circle-bg" cx="40" cy="40" r="32"></circle>
-                                                <circle class="progress-ring-circle ${movement}" cx="40" cy="40" r="32"></circle>
-                                            </svg>
-                                            <div class="angle-value">${angle.toFixed(1)}°</div>
+                                        <div class="joint-header">
+                                            <span class="joint-name">
+                                                ${this.getJointName(joint)}
+                                                <span class="movement-tag ${movement}">
+                                                    ${this.getMovementName(movement)}
+                                                </span>
+                                            </span>
+                                            <span class="joint-value">${angle.toFixed(1)}°</span>
                                         </div>
-                                        <div class="joint-label">${this.getJointName(joint)}</div>
+                                        <div class="angle-bar">
+                                            <div class="angle-value ${movement}" 
+                                                 style="width: ${percentage}%"></div>
+                                        </div>
                                     </div>
                                 `;
                             }
@@ -746,50 +682,6 @@
         // 页面关闭时清理
         window.addEventListener('beforeunload', () => {
             collector.stop();
-        });
-
-        // 初始化进度圈
-        function initProgressCircles() {
-            const circles = document.querySelectorAll('.progress-ring-circle');
-            circles.forEach(circle => {
-                const radius = circle.getAttribute('r');
-                const circumference = 2 * Math.PI * radius;
-                circle.style.strokeDasharray = `${circumference} ${circumference}`;
-                circle.style.strokeDashoffset = circumference;
-            });
-        }
-
-        // 更新进度圈
-        function setProgress(elementId, angle, maxAngle) {
-            const circle = document.querySelector(`#${elementId} .progress-ring-circle`);
-            const angleDisplay = document.querySelector(`#${elementId} .angle-value`);
-            const radius = circle.getAttribute('r');
-            const circumference = 2 * Math.PI * radius;
-
-            // 计算进度（0-100%）
-            const progress = Math.min(Math.max((Math.abs(angle) / maxAngle) * 100, 0), 100);
-
-            // 更新进度圈
-            const offset = circumference - (progress / 100 * circumference);
-            circle.style.strokeDashoffset = offset;
-
-            // 更新角度显示
-            angleDisplay.textContent = `${angle.toFixed(1)}°`;
-        }
-
-        // 页面加载时初始化
-        document.addEventListener('DOMContentLoaded', initProgressCircles);
-
-        // 接收数据更新
-        socket.on('hand_data', function (data) {
-            // 更新拇指数据
-            setProgress('thumb-flexion', data.thumb_flexion, 90);
-            setProgress('thumb-abduction', data.thumb_abduction, 90);
-
-            // 更新食指数据
-            setProgress('index-flexion', data.index_flexion, 90);
-
-            // 更新其他手指数据...
         });
     </script>
 </body>

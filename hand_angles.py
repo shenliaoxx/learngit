@@ -279,39 +279,39 @@ class HandAngleCalculator:
         
         return None
     
-    def visualize_angles(self, frame, landmarks, angles):
-        """可视化关节角度"""
-        height, width = frame.shape[:2]
+    # def visualize_angles(self, frame, landmarks, angles):
+    #     """可视化关节角度"""
+    #     height, width = frame.shape[:2]
         
-        # 绘制坐标系
-        origin, rotation_matrix = self.create_hand_coordinate_system(landmarks)
-        origin_px = tuple(map(int, [
-            origin[0] * width,
-            origin[1] * height
-        ]))
+    #     # 绘制坐标系
+    #     origin, rotation_matrix = self.create_hand_coordinate_system(landmarks)
+    #     origin_px = tuple(map(int, [
+    #         origin[0] * width,
+    #         origin[1] * height
+    #     ]))
         
-        # 绘制关节角度
-        for name, angle in angles.items():
-            # 解析角度名称
-            parts = name.split('_')
-            if len(parts) < 3:
-                continue
+    #     # 绘制关节角度
+    #     for name, angle in angles.items():
+    #         # 解析角度名称
+    #         parts = name.split('_')
+    #         if len(parts) < 3:
+    #             continue
                 
-            finger, joint, movement = parts
+    #         finger, joint, movement = parts
             
-            # 获取关节位置
-            joint_idx = self.get_joint_index(finger, joint)
-            if joint_idx is None:
-                continue
+    #         # 获取关节位置
+    #         joint_idx = self.get_joint_index(finger, joint)
+    #         if joint_idx is None:
+    #             continue
                 
-            px = int(landmarks.landmark[joint_idx].x * width)
-            py = int(landmarks.landmark[joint_idx].y * height)
+    #         px = int(landmarks.landmark[joint_idx].x * width)
+    #         py = int(landmarks.landmark[joint_idx].y * height)
             
-            # 根据运动类型选择颜色
-            color = (0, 255, 0) if movement == 'flexion' else (255, 0, 0)
+    #         # 根据运动类型选择颜色
+    #         color = (0, 255, 0) if movement == 'flexion' else (255, 0, 0)
             
-            # 显示角度值
-            cv2.putText(frame, f"{angle:.1f}°", 
-                       (px, py), cv2.FONT_HERSHEY_SIMPLEX, 
-                       0.3, color, 1)
+    #         # 显示角度值
+    #         cv2.putText(frame, f"{angle:.1f}°", 
+    #                    (px, py), cv2.FONT_HERSHEY_SIMPLEX, 
+    #                    0.3, color, 1)
 

@@ -5,19 +5,6 @@
     <title>多模态数据采集系统</title>
     <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
     <style>
-        /* 基础样式 */
-        :root {
-            --primary-color: #2196F3;
-            --success-color: #4CAF50;
-            --warning-color: #FFC107;
-            --danger-color: #F44336;
-            --gray-100: #f8f9fa;
-            --gray-200: #e9ecef;
-            --gray-300: #dee2e6;
-            --gray-600: #6c757d;
-            --shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-        }
-
         body {
             font-family: Arial, sans-serif;
             margin: 0;
@@ -47,29 +34,39 @@
             gap: 20px;
             max-width: 1800px;
             margin: 0 auto;
-            padding: 20px;
         }
 
-        /* 修改上部分布局 */
         .upper-section {
             display: grid;
             grid-template-columns: 1fr 1fr;
-            /* 平均分配空间 */
+            /* 上半部分平均分成两列 */
             gap: 20px;
-            height: 600px;
-            /* 增加高度 */
+            height: 480px;
+            /* 固定上半部分高度 */
         }
 
-        /* 相机显示区域 */
+        .lower-section {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        }
+
         .camera-container {
             background: white;
-            border-radius: 12px;
-            box-shadow: var(--shadow);
-            padding: 15px;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
             display: flex;
             flex-direction: column;
-            height: 100%;
-            /* 占满容器高度 */
+        }
+
+        .angles-container {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+            overflow-y: auto;
         }
 
         #camera-feed {
@@ -77,162 +74,69 @@
             height: calc(100% - 40px);
             /* 减去标题高度 */
             object-fit: contain;
-            border-radius: 8px;
+            border-radius: 4px;
         }
 
-        /* EMG数据显示区域 */
         .emg-container {
-            background: white;
-            border-radius: 12px;
-            box-shadow: var(--shadow);
-            padding: 15px;
-            display: flex;
-            flex-direction: column;
-            height: 100%;
-            /* 占满容器高度 */
+            padding: 20px;
         }
 
         .emg-charts-grid {
             display: grid;
-            grid-template-columns: repeat(2, 1fr);
-            grid-template-rows: repeat(4, 1fr);
+            grid-template-columns: repeat(8, 1fr);
+            /* 8个通道横向排列 */
             gap: 10px;
-            flex: 1;
-        }
-
-        .emg-chart {
-            min-height: 120px;
-            /* 增加图表高度 */
-            background: var(--gray-100);
-            border-radius: 6px;
-        }
-
-        /* 手部关节角度数据显示区域 */
-        .lower-section {
-            background: white;
-            border-radius: 12px;
-            box-shadow: var(--shadow);
-            padding: 20px;
-        }
-
-        .angles-container {
-            display: grid;
-            grid-template-columns: repeat(5, 1fr);
-            gap: 15px;
             margin-top: 15px;
         }
 
-        /* 优化关节角度卡片样式 */
-        .finger-card {
-            background: white;
-            border-radius: 12px;
-            padding: 15px;
-            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        .emg-chart {
+            height: 200px;
+            /* 调整EMG图表高度 */
         }
 
-        .finger-title {
-            text-align: center;
-            font-size: 16px;
-            font-weight: bold;
-            margin-bottom: 15px;
-            color: #333;
-        }
-
-        .joint-data {
-            display: flex;
-            flex-direction: column;
-            gap: 15px;
-        }
-
-        .joint-item {
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-        }
-
-        .progress-circle {
-            position: relative;
-            width: 80px;
-            height: 80px;
-        }
-
-        .progress-ring {
-            transform: rotate(-90deg);
-            width: 80px;
-            height: 80px;
-        }
-
-        .progress-ring-circle-bg {
-            fill: none;
-            stroke: #edf2f7;
-            stroke-width: 8;
-        }
-
-        .progress-ring-circle {
-            fill: none;
-            stroke-width: 8;
-            stroke-linecap: round;
-            transition: stroke-dashoffset 0.3s ease;
-        }
-
-        .progress-ring-circle.flexion {
-            stroke: #4CAF50;
-        }
-
-        .progress-ring-circle.abduction {
-            stroke: #2196F3;
-        }
-
-        .angle-value {
-            position: absolute;
-            top: 50%;
-            left: 50%;
-            transform: translate(-50%, -50%);
-            font-size: 14px;
-            font-weight: bold;
-            color: #333;
-        }
-
-        .joint-label {
-            margin-top: 5px;
-            font-size: 12px;
-            color: #666;
-        }
-
-        /* 统计数据样式 */
-        .stats-row {
-            display: none;
-        }
-
-        /* 标题样式 */
         .section-header {
             display: flex;
             justify-content: space-between;
             align-items: center;
             margin-bottom: 15px;
+            padding-bottom: 10px;
+            border-bottom: 1px solid #eee;
         }
 
-        .section-title {
-            font-size: 1.1em;
-            font-weight: 600;
+        .finger-data {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 15px;
+            height: calc(100% - 50px);
+            /* 减去标题高度 */
+            overflow-y: auto;
+        }
+
+        .finger-section {
+            background: #f8f9fa;
+            padding: 12px;
+            border-radius: 8px;
+            border: 1px solid #e9ecef;
+        }
+
+        .finger-section h4 {
+            margin: 0 0 8px 0;
             color: #333;
+            font-size: 14px;
+            border-bottom: 2px solid #007bff;
+            padding-bottom: 4px;
+        }
+
+        .joint-angle {
             display: flex;
-            align-items: center;
-            gap: 8px;
+            justify-content: space-between;
+            padding: 4px 0;
+            font-size: 12px;
+            border-bottom: 1px solid #eee;
         }
 
-        .data-indicator {
-            width: 8px;
-            height: 8px;
-            border-radius: 50%;
-        }
-
-        .data-indicator.active {
-            background: var(--success-color);
-        }
-
-        .data-indicator.inactive {
-            background: var(--danger-color);
+        .joint-angle span:last-child {
+            font-weight: bold;
         }
 
         .controls {
@@ -285,6 +189,28 @@
             color: #155724;
         }
 
+        .section-title {
+            font-size: 16px;
+            font-weight: bold;
+            color: #333;
+        }
+
+        .data-indicator {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            display: inline-block;
+            margin-left: 8px;
+        }
+
+        .data-indicator.active {
+            background-color: #28a745;
+        }
+
+        .data-indicator.inactive {
+            background-color: #dc3545;
+        }
+
         .emg-header {
             margin-bottom: 15px;
             padding-bottom: 10px;
@@ -309,35 +235,6 @@
 
         ::-webkit-scrollbar-thumb:hover {
             background: #555;
-        }
-
-        /* 手指关节数据容器 */
-        .joint-data-container {
-            display: grid;
-            grid-template-columns: repeat(5, 1fr);
-            gap: 15px;
-            padding: 20px;
-            background: #f8f9fa;
-            border-radius: 15px;
-            margin-top: 20px;
-        }
-
-        /* 关节类型标签 */
-        .movement-type {
-            font-size: 10px;
-            padding: 2px 8px;
-            border-radius: 10px;
-            margin-top: 5px;
-        }
-
-        .movement-type.flexion {
-            background: #E8F5E9;
-            color: #4CAF50;
-        }
-
-        .movement-type.abduction {
-            background: #E3F2FD;
-            color: #2196F3;
         }
     </style>
 </head>
@@ -369,81 +266,33 @@
                 <img id="camera-feed" src="" alt="Camera Feed">
             </div>
 
-            <div class="emg-container">
+            <div class="angles-container">
                 <div class="section-header">
                     <div class="section-title">
-                        EMG数据
-                        <span class="data-indicator" id="emg-indicator"></span>
+                        手部关节角度数据
+                        <span class="data-indicator" id="angles-indicator"></span>
                     </div>
                 </div>
-                <div class="emg-charts-grid">
-                    <div class="emg-chart" id="emg-chart-1"></div>
-                    <div class="emg-chart" id="emg-chart-2"></div>
-                    <div class="emg-chart" id="emg-chart-3"></div>
-                    <div class="emg-chart" id="emg-chart-4"></div>
-                    <div class="emg-chart" id="emg-chart-5"></div>
-                    <div class="emg-chart" id="emg-chart-6"></div>
-                    <div class="emg-chart" id="emg-chart-7"></div>
-                    <div class="emg-chart" id="emg-chart-8"></div>
-                </div>
+                <div class="finger-data" id="angles-display"></div>
             </div>
         </div>
 
         <div class="lower-section">
             <div class="section-header">
                 <div class="section-title">
-                    手部关节角度数据
-                    <span class="data-indicator" id="angles-indicator"></span>
+                    EMG数据
+                    <span class="data-indicator" id="emg-indicator"></span>
                 </div>
             </div>
-            <div class="joint-data-container">
-                <!-- 拇指 -->
-                <div class="finger-card">
-                    <div class="finger-title">拇指</div>
-                    <div class="joint-data">
-                        <!-- 屈曲角度 -->
-                        <div class="joint-item">
-                            <div class="progress-circle" id="thumb-flexion">
-                                <svg class="progress-ring">
-                                    <circle class="progress-ring-circle-bg" cx="40" cy="40" r="32"></circle>
-                                    <circle class="progress-ring-circle flexion" cx="40" cy="40" r="32"></circle>
-                                </svg>
-                                <div class="angle-value">0°</div>
-                            </div>
-                            <div class="joint-label">屈曲</div>
-                        </div>
-                        <!-- 外展角度 -->
-                        <div class="joint-item">
-                            <div class="progress-circle" id="thumb-abduction">
-                                <svg class="progress-ring">
-                                    <circle class="progress-ring-circle-bg" cx="40" cy="40" r="32"></circle>
-                                    <circle class="progress-ring-circle abduction" cx="40" cy="40" r="32"></circle>
-                                </svg>
-                                <div class="angle-value">0°</div>
-                            </div>
-                            <div class="joint-label">外展</div>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- 食指 -->
-                <div class="finger-card">
-                    <div class="finger-title">食指</div>
-                    <div class="joint-data">
-                        <div class="joint-item">
-                            <div class="progress-circle" id="index-flexion">
-                                <svg class="progress-ring">
-                                    <circle class="progress-ring-circle-bg" cx="40" cy="40" r="32"></circle>
-                                    <circle class="progress-ring-circle flexion" cx="40" cy="40" r="32"></circle>
-                                </svg>
-                                <div class="angle-value">0°</div>
-                            </div>
-                            <div class="joint-label">屈曲</div>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- 其他手指类似... -->
+            <div class="emg-charts-grid">
+                <div class="emg-chart" id="emg-chart-1"></div>
+                <div class="emg-chart" id="emg-chart-2"></div>
+                <div class="emg-chart" id="emg-chart-3"></div>
+                <div class="emg-chart" id="emg-chart-4"></div>
+                <div class="emg-chart" id="emg-chart-5"></div>
+                <div class="emg-chart" id="emg-chart-6"></div>
+                <div class="emg-chart" id="emg-chart-7"></div>
+                <div class="emg-chart" id="emg-chart-8"></div>
             </div>
         </div>
     </div>
@@ -472,7 +321,7 @@
 
                     const layout = {
                         title: `EMG ${i + 1}`,
-                        height: 120, // 增加图表高度
+                        height: 200,
                         margin: { t: 25, b: 20, l: 30, r: 20 },
                         paper_bgcolor: 'rgba(0,0,0,0)',
                         plot_bgcolor: 'rgba(0,0,0,0)',
@@ -542,7 +391,7 @@
             updateAngles(handData) {
                 if (!handData || Object.keys(handData).length === 0) {
                     document.getElementById('angles-display').innerHTML =
-                        '<div class="finger-card">未检测到手部</div>';
+                        '<div class="finger-section">未检测到手部</div>';
                     return;
                 }
 
@@ -550,42 +399,31 @@
                 display.innerHTML = '';
 
                 const fingers = ['thumb', 'index', 'middle', 'ring', 'pinky'];
-                const joints = ['mcp', 'pip', 'dip'];
                 const movements = ['flexion', 'abduction'];
 
                 fingers.forEach(finger => {
-                    const card = document.createElement('div');
-                    card.className = 'finger-card';
-                    let html = `<div class="finger-title">${this.getFingerName(finger)}</div>`;
-                    html += '<div class="joint-data">';
+                    const section = document.createElement('div');
+                    section.className = 'finger-section';
+                    let html = `<h4>${this.getFingerName(finger)}</h4>`;
 
-                    joints.forEach(joint => {
+                    ['mcp', 'pip', 'dip'].forEach(joint => {
                         movements.forEach(movement => {
                             const angleKey = `${finger}_${joint}_${movement}`;
                             if (angleKey in handData) {
                                 const angle = handData[angleKey];
-                                const maxAngle = movement === 'flexion' ? 90 : 30;
-                                const percentage = Math.min((Math.abs(angle) / maxAngle) * 100, 100);
-
+                                const color = movement === 'flexion' ? '#28a745' : '#007bff';
                                 html += `
-                                    <div class="joint-item">
-                                        <div class="progress-circle" id="${finger}-${movement}">
-                                            <svg class="progress-ring">
-                                                <circle class="progress-ring-circle-bg" cx="40" cy="40" r="32"></circle>
-                                                <circle class="progress-ring-circle ${movement}" cx="40" cy="40" r="32"></circle>
-                                            </svg>
-                                            <div class="angle-value">${angle.toFixed(1)}°</div>
-                                        </div>
-                                        <div class="joint-label">${this.getJointName(joint)}</div>
+                                    <div class="joint-angle">
+                                        <span>${this.getJointName(joint)} ${this.getMovementName(movement)}</span>
+                                        <span style="color: ${color}">${angle.toFixed(1)}°</span>
                                     </div>
                                 `;
                             }
                         });
                     });
 
-                    html += '</div>';
-                    card.innerHTML = html;
-                    display.appendChild(card);
+                    section.innerHTML = html;
+                    display.appendChild(section);
                 });
             }
 
@@ -746,50 +584,6 @@
         // 页面关闭时清理
         window.addEventListener('beforeunload', () => {
             collector.stop();
-        });
-
-        // 初始化进度圈
-        function initProgressCircles() {
-            const circles = document.querySelectorAll('.progress-ring-circle');
-            circles.forEach(circle => {
-                const radius = circle.getAttribute('r');
-                const circumference = 2 * Math.PI * radius;
-                circle.style.strokeDasharray = `${circumference} ${circumference}`;
-                circle.style.strokeDashoffset = circumference;
-            });
-        }
-
-        // 更新进度圈
-        function setProgress(elementId, angle, maxAngle) {
-            const circle = document.querySelector(`#${elementId} .progress-ring-circle`);
-            const angleDisplay = document.querySelector(`#${elementId} .angle-value`);
-            const radius = circle.getAttribute('r');
-            const circumference = 2 * Math.PI * radius;
-
-            // 计算进度（0-100%）
-            const progress = Math.min(Math.max((Math.abs(angle) / maxAngle) * 100, 0), 100);
-
-            // 更新进度圈
-            const offset = circumference - (progress / 100 * circumference);
-            circle.style.strokeDashoffset = offset;
-
-            // 更新角度显示
-            angleDisplay.textContent = `${angle.toFixed(1)}°`;
-        }
-
-        // 页面加载时初始化
-        document.addEventListener('DOMContentLoaded', initProgressCircles);
-
-        // 接收数据更新
-        socket.on('hand_data', function (data) {
-            // 更新拇指数据
-            setProgress('thumb-flexion', data.thumb_flexion, 90);
-            setProgress('thumb-abduction', data.thumb_abduction, 90);
-
-            // 更新食指数据
-            setProgress('index-flexion', data.index_flexion, 90);
-
-            // 更新其他手指数据...
         });
     </script>
 </body>
