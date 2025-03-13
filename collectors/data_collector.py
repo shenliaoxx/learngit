@@ -100,7 +100,6 @@ class DataCollector:
                         # 定期记录样本数量
                         current_samples = len(self.emg_buffer['timestamps'])
                         if current_samples - last_sample_count_log >= sample_count_log_interval:
-                            print(f"当前EMG样本数: {current_samples}")
                             last_sample_count_log = current_samples
                             
                     last_emg_time = current_time

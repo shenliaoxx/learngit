@@ -447,6 +447,16 @@
             color: #28a745;
             font-weight: bold;
         }
+
+        #hand-samples-display.warning {
+            color: #ff9900;
+            font-weight: bold;
+        }
+
+        #hand-samples-display.success {
+            color: #28a745;
+            font-weight: bold;
+        }
     </style>
 </head>
 
@@ -564,13 +574,10 @@
 
     <div class="status-panel">
         <div class="status-item">
-            <span id="myo-status" class="status">Myo状态: 未连接</span>
-        </div>
-        <div class="status-item">
-            <span id="status" class="status">就绪</span>
-        </div>
-        <div class="status-item">
             <span id="emg-samples-display">EMG样本数: 0</span>
+        </div>
+        <div class="status-item">
+            <span id="hand-samples-display">手部样本数: 0</span>
         </div>
         <div class="status-item">
             <span id="recording-status" class="status">未记录</span>
@@ -578,10 +585,16 @@
         <div class="status-item">
             <span id="recording-duration">记录时长: 0秒</span>
         </div>
-        <div class="status-item">
+        <div class="status-item" style="display: none;">
+            <span id="myo-status" class="status">Myo状态: 未连接</span>
+        </div>
+        <div class="status-item" style="display: none;">
+            <span id="status" class="status">就绪</span>
+        </div>
+        <div class="status-item" style="display: none;">
             <span id="emg-rate">EMG采样率: 0 Hz</span>
         </div>
-        <div class="status-item">
+        <div class="status-item" style="display: none;">
             <span id="hand-rate">手部采样率: 0 Hz</span>
         </div>
     </div>
@@ -722,8 +735,10 @@
             updateMyoStatus(message, isError = false) {
                 // 更新底部状态栏
                 const status = document.getElementById('myo-status');
-                status.textContent = 'Myo状态: ' + message;
-                status.className = `status ${isError ? 'error' : 'success'}`;
+                if (status) {
+                    status.textContent = 'Myo状态: ' + message;
+                    status.className = `status ${isError ? 'error' : 'success'}`;
+                }
 
                 // 同时更新顶部状态栏
                 const mainStatus = document.getElementById('main-myo-status');
@@ -752,8 +767,10 @@
             updateStatus(message, isError = false) {
                 // 更新底部状态栏
                 const status = document.getElementById('status');
-                status.textContent = message;
-                status.className = `status ${isError ? 'error' : 'success'}`;
+                if (status) {
+                    status.textContent = message;
+                    status.className = `status ${isError ? 'error' : 'success'}`;
+                }
 
                 // 同时更新顶部状态栏
                 const mainStatus = document.getElementById('main-status');
@@ -1082,24 +1099,6 @@
                 }
             }
 
-            // saveRecordedData() {
-            //     if (this.recordedData.length > 0) {
-            //         const blob = new Blob(
-            //             [JSON.stringify(this.recordedData, null, 2)],
-            //             { type: 'application/json' }
-            //         );
-            //         const url = URL.createObjectURL(blob);
-            //         const a = document.createElement('a');
-            //         a.href = url;
-            //         a.download = `multimodal_data_${new Date().toISOString()}.json`;
-            //         document.body.appendChild(a);
-            //         a.click();
-            //         document.body.removeChild(a);
-            //         URL.revokeObjectURL(url);
-            //         this.recordedData = [];
-            //     }
-            // }
-
             resetData() {
                 this.recordedData = [];
                 this.updateStatus('数据已重置');
@@ -1132,28 +1131,44 @@
             updateDeviceIndicators() {
                 // 定期更新设备指示器状态
                 setInterval(() => {
-                    // 更新Myo指示器
-                    const myoConnected = document.getElementById('myo-status').classList.contains('success');
+                    // 更新Myo指示器 - 添加元素存在性检查
+                    const myoStatusElement = document.getElementById('myo-status');
+                    const myoConnected = myoStatusElement && myoStatusElement.classList.contains('success');
                     const myoText = document.getElementById('myo-connection-text');
 
-                    if (myoConnected) {
-                        myoText.textContent = '已连接';
-                        document.getElementById('emg-indicator').style.backgroundColor = '#28a745'; // 绿色
-                    } else {
-                        myoText.textContent = '未连接';
-                        document.getElementById('emg-indicator').style.backgroundColor = '#dc3545'; // 红色
+                    if (myoText) {
+                        if (myoConnected) {
+                            myoText.textContent = '已连接';
+                            const emgIndicator = document.getElementById('emg-indicator');
+                            if (emgIndicator) {
+                                emgIndicator.style.backgroundColor = '#28a745'; // 绿色
+                            }
+                        } else {
+                            myoText.textContent = '未连接';
+                            const emgIndicator = document.getElementById('emg-indicator');
+                            if (emgIndicator) {
+                                emgIndicator.style.backgroundColor = '#dc3545'; // 红色
+                            }
+                        }
                     }
 
                     // 更新RealSense指示器
-                    const realsenseConnected = document.getElementById('camera-indicator').classList.contains('active');
+                    const cameraIndicator = document.getElementById('camera-indicator');
+                    const realsenseConnected = cameraIndicator && cameraIndicator.classList.contains('active');
                     const realsenseText = document.getElementById('realsense-connection-text');
 
-                    if (realsenseConnected) {
-                        realsenseText.textContent = '已连接';
-                        document.getElementById('camera-indicator').style.backgroundColor = '#28a745'; // 绿色
-                    } else {
-                        realsenseText.textContent = '未连接';
-                        document.getElementById('camera-indicator').style.backgroundColor = '#dc3545'; // 红色
+                    if (realsenseText) {
+                        if (realsenseConnected) {
+                            realsenseText.textContent = '已连接';
+                            if (cameraIndicator) {
+                                cameraIndicator.style.backgroundColor = '#28a745'; // 绿色
+                            }
+                        } else {
+                            realsenseText.textContent = '未连接';
+                            if (cameraIndicator) {
+                                cameraIndicator.style.backgroundColor = '#dc3545'; // 红色
+                            }
+                        }
                     }
                 }, 1000);
             }
@@ -1167,7 +1182,7 @@
                         recordingStatus.className = stats.is_recording ? 'status success' : 'status';
                     }
 
-                    // 更新样本数量
+                    // 更新EMG样本数量
                     const emgSamplesDisplay = document.getElementById('emg-samples-display');
                     if (emgSamplesDisplay) {
                         emgSamplesDisplay.textContent = `EMG样本数: ${stats.emg_samples}`;
@@ -1183,29 +1198,49 @@
                         }
                     }
 
+                    // 更新手部样本数量
+                    const handSamplesDisplay = document.getElementById('hand-samples-display');
+                    if (handSamplesDisplay && stats.hand_samples !== undefined) {
+                        handSamplesDisplay.textContent = `手部样本数: ${stats.hand_samples}`;
+                        handSamplesDisplay.setAttribute('data-samples', stats.hand_samples);
+
+                        // 如果样本数量接近500，显示警告
+                        if (stats.hand_samples > 450 && stats.hand_samples <= 500) {
+                            handSamplesDisplay.className = 'warning';
+                        } else if (stats.hand_samples > 500) {
+                            handSamplesDisplay.className = 'success';
+                        } else {
+                            handSamplesDisplay.className = '';
+                        }
+                    }
+
                     // 更新采样率
                     const emgRateElement = document.getElementById('emg-rate');
-                    emgRateElement.textContent = `EMG采样率: ${stats.emg_rate.toFixed(1)} Hz`;
+                    if (emgRateElement) {
+                        emgRateElement.textContent = `EMG采样率: ${stats.emg_rate.toFixed(1)} Hz`;
 
-                    // 根据采样率设置颜色
-                    if (stats.emg_rate < 150) {
-                        emgRateElement.className = 'status warning';
-                    } else if (stats.emg_rate < 100) {
-                        emgRateElement.className = 'status error';
-                    } else {
-                        emgRateElement.className = 'status success';
+                        // 根据采样率设置颜色
+                        if (stats.emg_rate < 150) {
+                            emgRateElement.className = 'status warning';
+                        } else if (stats.emg_rate < 100) {
+                            emgRateElement.className = 'status error';
+                        } else {
+                            emgRateElement.className = 'status success';
+                        }
                     }
 
                     const handRateElement = document.getElementById('hand-rate');
-                    handRateElement.textContent = `手部采样率: ${stats.hand_rate.toFixed(1)} Hz`;
+                    if (handRateElement) {
+                        handRateElement.textContent = `手部采样率: ${stats.hand_rate.toFixed(1)} Hz`;
 
-                    // 根据采样率设置颜色
-                    if (stats.hand_rate < 20) {
-                        handRateElement.className = 'status warning';
-                    } else if (stats.hand_rate < 15) {
-                        handRateElement.className = 'status error';
-                    } else {
-                        handRateElement.className = 'status success';
+                        // 根据采样率设置颜色
+                        if (stats.hand_rate < 20) {
+                            handRateElement.className = 'status warning';
+                        } else if (stats.hand_rate < 15) {
+                            handRateElement.className = 'status error';
+                        } else {
+                            handRateElement.className = 'status success';
+                        }
                     }
 
                     // 更新记录时长
