@@ -423,6 +423,30 @@
             gap: 10px;
             justify-content: center;
         }
+
+        .status-panel {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 10px;
+            background-color: #f8f9fa;
+            border-radius: 8px;
+            margin-bottom: 10px;
+        }
+
+        .status-item {
+            margin-right: 10px;
+        }
+
+        #emg-samples-display.warning {
+            color: #ff9900;
+            font-weight: bold;
+        }
+
+        #emg-samples-display.success {
+            color: #28a745;
+            font-weight: bold;
+        }
     </style>
 </head>
 
@@ -434,8 +458,8 @@
     <!-- 系统控制区域 -->
     <div class="system-controls">
         <div class="system-status">
-            <div id="status" class="status">系统状态: 初始化中...</div>
-            <div id="myo-status" class="status">Myo状态: 检查中...</div>
+            <div id="main-status" class="status">系统状态: 初始化中...</div>
+            <div id="main-myo-status" class="status">Myo状态: 检查中...</div>
         </div>
         <div class="control-buttons">
             <button id="recordBtn" onclick="toggleRecording()">开始记录</button>
@@ -463,7 +487,7 @@
                         </span>
                         <span class="stat-item">
                             <span class="stat-label">总帧数:</span>
-                            <span class="stat-value" id="camera-total-frames">0</span>
+                            <span class="stat-value" id="camera-frames">0</span>
                         </span>
                     </div>
                 </div>
@@ -508,12 +532,12 @@
             <!-- EMG统计信息 -->
             <div class="stats-container">
                 <div class="stat-item">
-                    <span class="stat-label">帧率:</span>
-                    <span class="stat-value" id="frame-rate">0 FPS</span>
+                    <span class="stat-label">采样率:</span>
+                    <span class="stat-value" id="sampling-rate">0 Hz</span>
                 </div>
                 <div class="stat-item">
-                    <span class="stat-label">总帧数:</span>
-                    <span class="stat-value" id="total-frames">0</span>
+                    <span class="stat-label">总样本数:</span>
+                    <span class="stat-value" id="total-samples">0</span>
                 </div>
             </div>
 
@@ -527,6 +551,30 @@
                 <div class="emg-chart" id="emg-chart-7"></div>
                 <div class="emg-chart" id="emg-chart-8"></div>
             </div>
+        </div>
+    </div>
+
+    <div class="status-panel">
+        <div class="status-item">
+            <span id="myo-status" class="status">Myo状态: 未连接</span>
+        </div>
+        <div class="status-item">
+            <span id="status" class="status">就绪</span>
+        </div>
+        <div class="status-item">
+            <span id="emg-samples-display">EMG样本数: 0</span>
+        </div>
+        <div class="status-item">
+            <span id="recording-status" class="status">未记录</span>
+        </div>
+        <div class="status-item">
+            <span id="recording-duration">记录时长: 0秒</span>
+        </div>
+        <div class="status-item">
+            <span id="emg-rate">EMG采样率: 0 Hz</span>
+        </div>
+        <div class="status-item">
+            <span id="hand-rate">手部采样率: 0 Hz</span>
         </div>
     </div>
 
@@ -646,34 +694,65 @@
             }
 
             updateEMGStats(data) {
-                // 更新帧率
-                const frameRateElement = document.getElementById('frame-rate');
-                frameRateElement.textContent = `${data.frame_rate.toFixed(1)} FPS`;
+                // 更新采样率
+                const samplingRateElement = document.getElementById('sampling-rate');
+                samplingRateElement.textContent = `${data.sampling_rate.toFixed(1)} Hz`;
 
-                // 根据帧率设置颜色
-                if (data.frame_rate < 100) {
-                    frameRateElement.className = 'stat-value warning';
-                } else if (data.frame_rate < 50) {
-                    frameRateElement.className = 'stat-value danger';
+                // 根据采样率设置颜色
+                if (data.sampling_rate < 150) {
+                    samplingRateElement.className = 'stat-value warning';
+                } else if (data.sampling_rate < 100) {
+                    samplingRateElement.className = 'stat-value danger';
                 } else {
-                    frameRateElement.className = 'stat-value';
+                    samplingRateElement.className = 'stat-value';
                 }
 
-                // 更新总帧数
-                document.getElementById('total-frames').textContent = data.total_frames;
-
+                // 更新总样本数
+                document.getElementById('total-samples').textContent = data.total_samples;
             }
 
             updateMyoStatus(message, isError = false) {
+                // 更新底部状态栏
                 const status = document.getElementById('myo-status');
                 status.textContent = 'Myo状态: ' + message;
                 status.className = `status ${isError ? 'error' : 'success'}`;
+
+                // 同时更新顶部状态栏
+                const mainStatus = document.getElementById('main-myo-status');
+                if (mainStatus) {
+                    mainStatus.textContent = 'Myo状态: ' + message;
+                    mainStatus.className = `status ${isError ? 'error' : 'success'}`;
+                }
+
+                // 更新样本数量显示
+                const samplesDisplay = document.getElementById('emg-samples-display');
+                if (samplesDisplay) {
+                    const currentSamples = parseInt(samplesDisplay.getAttribute('data-samples') || '0');
+                    samplesDisplay.textContent = `EMG样本数: ${currentSamples}`;
+
+                    // 如果样本数量接近1000，显示警告
+                    if (currentSamples > 900 && currentSamples <= 1000) {
+                        samplesDisplay.className = 'warning';
+                    } else if (currentSamples > 1000) {
+                        samplesDisplay.className = 'success';
+                    } else {
+                        samplesDisplay.className = '';
+                    }
+                }
             }
 
             updateStatus(message, isError = false) {
+                // 更新底部状态栏
                 const status = document.getElementById('status');
                 status.textContent = message;
                 status.className = `status ${isError ? 'error' : 'success'}`;
+
+                // 同时更新顶部状态栏
+                const mainStatus = document.getElementById('main-status');
+                if (mainStatus) {
+                    mainStatus.textContent = '系统状态: ' + message;
+                    mainStatus.className = `status ${isError ? 'error' : 'success'}`;
+                }
             }
 
             updateAngles(handData) {
@@ -808,8 +887,11 @@
 
                 try {
                     const response = await fetch('/get_data');
-                    const data = await response.json();
+                    if (!response.ok) {
+                        throw new Error(`HTTP错误: ${response.status}`);
+                    }
 
+                    const data = await response.json();
                     console.log("相机帧率:", data.camera_fps, "总帧数:", data.camera_total_frames); // 调试输出
 
                     if (data.status === 'success') {
@@ -830,8 +912,14 @@
                             this.updateAngles(data.hand_data);
                         }
 
-                        // 更新相机统计信息
-                        this.updateCameraStats(data);
+                        // 更新统计信息
+                        if (data.stats) {
+                            this.updateStats(data.stats);
+                        }
+
+                        // 更新相机信息
+                        document.getElementById('camera-fps').textContent = `相机帧率: ${data.camera_fps.toFixed(1)} FPS`;
+                        document.getElementById('camera-frames').textContent = `总帧数: ${data.camera_total_frames}`;
 
                         if (this.isRecording) {
                             this.recordedData.push({
@@ -850,8 +938,18 @@
                 } catch (error) {
                     console.error('数据获取错误:', error);
                     this.updateStatus('数据获取错误: ' + error.message, true);
+
+                    // 添加重试逻辑
+                    setTimeout(() => {
+                        if (this.isRunning) {
+                            console.log("尝试重新连接...");
+                            this.fetchData();
+                        }
+                    }, 2000); // 2秒后重试
+                    return; // 防止立即调用下一次fetchData
                 }
 
+                // 正常情况下，继续获取数据
                 requestAnimationFrame(() => this.fetchData());
             }
 
@@ -876,7 +974,7 @@
 
                     // 更新相机总帧数
                     if (data.camera_total_frames !== undefined) {
-                        const cameraTotalFramesElement = document.getElementById('camera-total-frames');
+                        const cameraTotalFramesElement = document.getElementById('camera-frames');
                         if (cameraTotalFramesElement) {
                             cameraTotalFramesElement.textContent = data.camera_total_frames;
                         }
@@ -1021,6 +1119,48 @@
                         document.getElementById('camera-indicator').style.backgroundColor = '#dc3545'; // 红色
                     }
                 }, 1000);
+            }
+
+            updateStats(stats) {
+                if (stats) {
+                    // 更新记录状态
+                    const recordingStatus = document.getElementById('recording-status');
+                    if (recordingStatus) {
+                        recordingStatus.textContent = stats.is_recording ? '正在记录' : '未记录';
+                        recordingStatus.className = stats.is_recording ? 'status success' : 'status';
+                    }
+
+                    // 更新样本数量
+                    const emgSamplesDisplay = document.getElementById('emg-samples-display');
+                    if (emgSamplesDisplay) {
+                        emgSamplesDisplay.textContent = `EMG样本数: ${stats.emg_samples}`;
+                        emgSamplesDisplay.setAttribute('data-samples', stats.emg_samples);
+
+                        // 如果样本数量接近1000，显示警告
+                        if (stats.emg_samples > 900 && stats.emg_samples <= 1000) {
+                            emgSamplesDisplay.className = 'warning';
+                        } else if (stats.emg_samples > 1000) {
+                            emgSamplesDisplay.className = 'success';
+                        } else {
+                            emgSamplesDisplay.className = '';
+                        }
+                    }
+
+                    // 更新采样率
+                    document.getElementById('emg-rate').textContent = `EMG采样率: ${stats.emg_rate.toFixed(1)} Hz`;
+                    document.getElementById('hand-rate').textContent = `手部采样率: ${stats.hand_rate.toFixed(1)} Hz`;
+
+                    // 更新记录时长
+                    if (stats.is_recording) {
+                        const duration = Math.floor(stats.duration);
+                        const minutes = Math.floor(duration / 60);
+                        const seconds = duration % 60;
+                        document.getElementById('recording-duration').textContent =
+                            `记录时长: ${minutes}分${seconds}秒`;
+                    } else {
+                        document.getElementById('recording-duration').textContent = '记录时长: 0秒';
+                    }
+                }
             }
         }
 

@@ -36,42 +36,85 @@ def get_data():
     try:
         current_time = time.perf_counter()
 
+        # 检查组件是否初始化
+        if not myo_manager:
+            return jsonify({
+                'status': 'error',
+                'message': 'Myo管理器未初始化',
+                'emg_data': {'raw_emg': [0] * 8, 'filtered_emg': [0] * 8},
+                'hand_data': {},
+                'frame': '',
+                'camera_fps': 0,
+                'camera_total_frames': 0,
+                'stats': {}
+            })
+            
+        if not realsense_collector:
+            return jsonify({
+                'status': 'error',
+                'message': 'RealSense采集器未初始化',
+                'emg_data': {'raw_emg': [0] * 8, 'filtered_emg': [0] * 8},
+                'hand_data': {},
+                'frame': '',
+                'camera_fps': 0,
+                'camera_total_frames': 0,
+                'stats': {}
+            })
+            
+        if not data_collector:
+            return jsonify({
+                'status': 'error',
+                'message': '数据采集器未初始化',
+                'emg_data': {'raw_emg': [0] * 8, 'filtered_emg': [0] * 8},
+                'hand_data': {},
+                'frame': '',
+                'camera_fps': 0,
+                'camera_total_frames': 0,
+                'stats': {}
+            })
+
         # 获取EMG数据
-        emg_data = myo_manager.get_latest_data() if myo_manager else {'raw_emg': [0] * 8, 'filtered_emg': [0] * 8}
+        try:
+            emg_data = myo_manager.get_latest_data()
+        except Exception as e:
+            print(f"获取EMG数据错误: {e}")
+            emg_data = {'raw_emg': [0] * 8, 'filtered_emg': [0] * 8}
         
         # 获取手部数据和相机帧
-        hand_data = realsense_collector.get_hand_data() if realsense_collector else {}
-        frame = realsense_collector.get_frame()
+        try:
+            hand_data = realsense_collector.get_hand_data() or {}
+        except Exception as e:
+            print(f"获取手部数据错误: {e}")
+            hand_data = {}
+            
+        try:
+            frame = realsense_collector.get_frame()
+        except Exception as e:
+            print(f"获取相机帧错误: {e}")
+            frame = None
 
-
-
-        # 如果正在记录，添加数据到采集器
-        if data_collector and data_collector.is_recording:
-            if emg_data:
-                data_collector.add_emg_data(current_time, emg_data)
-            if hand_data:
-                data_collector.add_hand_data(current_time, hand_data)
-
-        
         # 获取相机统计信息
-        camera_stats = {}
-        if realsense_collector:
-            try:
-                camera_stats = realsense_collector.get_camera_stats()
-            except Exception as e:
-                print(f"获取相机统计信息错误: {e}")
-                camera_stats = {'camera_fps': 0, 'camera_total_frames': 0}
-        else:
+        try:
+            camera_stats = realsense_collector.get_camera_stats()
+        except Exception as e:
+            print(f"获取相机统计信息错误: {e}")
             camera_stats = {'camera_fps': 0, 'camera_total_frames': 0}
 
         # 转换相机帧为base64
         frame_base64 = ''
         if frame is not None:
-            _, buffer = cv2.imencode('.jpg', frame)
-            frame_base64 = base64.b64encode(buffer).decode('utf-8')
+            try:
+                _, buffer = cv2.imencode('.jpg', frame)
+                frame_base64 = base64.b64encode(buffer).decode('utf-8')
+            except Exception as e:
+                print(f"转换相机帧错误: {e}")
 
         # 获取统计信息
-        stats = data_collector.get_stats() if data_collector else {}
+        try:
+            stats = data_collector.get_stats()
+        except Exception as e:
+            print(f"获取统计信息错误: {e}")
+            stats = {}
 
         response_data = {
             'status': 'success',
@@ -92,18 +135,19 @@ def get_data():
         print(traceback.format_exc())
         return jsonify({
             'status': 'error',
-            'message': str(e),
+            'message': f"获取数据错误: {str(e)}",
             'emg_data': {'raw_emg': [0] * 8, 'filtered_emg': [0] * 8},
             'hand_data': {},
             'frame': '',
             'camera_fps': 0,
             'camera_total_frames': 0,
+            'stats': {}
         })
 
 
 @app.route('/record_action', methods=['POST'])
 def record_action():
-    global data_collector
+    global data_collector, myo_manager
     try:
         data = request.json
         
@@ -112,6 +156,27 @@ def record_action():
                 'status': 'error',
                 'message': '数据采集器未初始化'
             })
+        
+        # 检查Myo连接状态
+        myo_status = myo_manager.get_status()
+        if not myo_status['connected']:
+            print("警告: Myo设备未连接，尝试重新初始化...")
+            # 尝试重新初始化Myo
+            try:
+                myo_manager = MyoManager()
+                myo_thread = Thread(target=myo_manager.run_collection)
+                myo_thread.daemon = True
+                myo_thread.start()
+                
+                # 更新数据采集器中的Myo管理器
+                data_collector.myo_manager = myo_manager
+                
+                time.sleep(2)  # 等待初始化
+                print("Myo设备重新初始化完成")
+            except Exception as e:
+                print(f"重新初始化Myo失败: {e}")
+                import traceback
+                print(traceback.format_exc())
         
         # 准备元数据
         metadata = {
@@ -131,6 +196,8 @@ def record_action():
         
     except Exception as e:
         print(f"记录操作错误: {e}")
+        import traceback
+        print(traceback.format_exc())
         return jsonify({
             'status': 'error',
             'message': str(e)
@@ -177,13 +244,59 @@ def myo_status():
             'status': 'success',
             'connected': status['connected'],
             'synced': status['synced'],
-            'frame_rate': status['frame_rate'],
-            'total_frames': status['total_frames'],
+            'sampling_rate': status['sampling_rate'],
+            'total_samples': status['total_samples']
         })
     return jsonify({
         'status': 'error',
         'message': 'Myo管理器未初始化'
     })
+
+@app.route('/reset_myo', methods=['POST'])
+def reset_myo():
+    global myo_manager, data_collector
+    try:
+        # 创建新的Myo管理器
+        old_myo = myo_manager
+        myo_manager = MyoManager()
+        
+        # 启动新的Myo线程
+        myo_thread = Thread(target=myo_manager.run_collection)
+        myo_thread.daemon = True
+        myo_thread.start()
+        
+        # 更新数据采集器中的Myo管理器
+        if data_collector:
+            data_collector.myo_manager = myo_manager
+        
+        # 等待初始化
+        time.sleep(2)
+        
+        # 获取新的状态
+        status = myo_manager.get_status()
+        
+        # 尝试关闭旧的Myo管理器
+        if old_myo:
+            try:
+                old_myo.is_running = False
+                print("旧的Myo管理器已停止")
+            except:
+                pass
+        
+        return jsonify({
+            'status': 'success',
+            'message': 'Myo设备已重置',
+            'connected': status['connected'],
+            'synced': status['synced']
+        })
+    except Exception as e:
+        print(f"重置Myo错误: {e}")
+        import traceback
+        print(traceback.format_exc())
+        return jsonify({
+            'status': 'error',
+            'message': str(e)
+        })
 
 if __name__ == '__main__':
     try:
@@ -202,13 +315,28 @@ if __name__ == '__main__':
         myo_thread.daemon = True
         myo_thread.start()
 
+        # 等待Myo初始化完成
+        print("等待Myo设备初始化...")
+        time.sleep(3)
+        
+        # 检查Myo状态
+        myo_status = myo_manager.get_status()
+        print(f"Myo初始化状态: 连接={myo_status['connected']}, 同步={myo_status['synced']}")
+
         data_collector = DataCollector(myo_manager, realsense_collector)
+        data_collector.start_collection_thread()
         
         # 启动Flask服务器
         app.run(host='0.0.0.0', port=5000, debug=False)
         
     except Exception as e:
         print(f"启动错误: {e}")
+        import traceback
+        print(traceback.format_exc())
     finally:
+        # 停止数据采集线程
+        if data_collector:
+            data_collector.stop_collection_thread()
+        # 停止RealSense
         if realsense_collector:
             realsense_collector.stop()
