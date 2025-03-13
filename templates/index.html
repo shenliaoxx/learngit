@@ -5,19 +5,6 @@
     <title>多模态数据采集系统</title>
     <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
     <style>
-        /* 基础样式 */
-        :root {
-            --primary-color: #2196F3;
-            --success-color: #4CAF50;
-            --warning-color: #FFC107;
-            --danger-color: #F44336;
-            --gray-100: #f8f9fa;
-            --gray-200: #e9ecef;
-            --gray-300: #dee2e6;
-            --gray-600: #6c757d;
-            --shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-        }
-
         body {
             font-family: Arial, sans-serif;
             margin: 0;
@@ -31,14 +18,14 @@
         }
 
         .status-bar {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 20px;
-            padding: 10px 20px;
-            background: white;
-            border-radius: 8px;
-            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+            display: none;
+            /* 隐藏原状态栏 */
+        }
+
+        /* 设备展示区样式 */
+        .devices-showcase {
+            display: none;
+            /* 隐藏原设备展示区 */
         }
 
         .main-container {
@@ -47,29 +34,118 @@
             gap: 20px;
             max-width: 1800px;
             margin: 0 auto;
-            padding: 20px;
         }
 
-        /* 修改上部分布局 */
         .upper-section {
             display: grid;
             grid-template-columns: 1fr 1fr;
-            /* 平均分配空间 */
+            /* 上半部分平均分成两列 */
             gap: 20px;
-            height: 600px;
-            /* 增加高度 */
+            height: 480px;
+            /* 固定上半部分高度 */
         }
 
-        /* 相机显示区域 */
+        .lower-section {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        }
+
         .camera-container {
             background: white;
-            border-radius: 12px;
-            box-shadow: var(--shadow);
-            padding: 15px;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
             display: flex;
             flex-direction: column;
+        }
+
+        /* 设备信息区域 */
+        .device-info {
+            display: flex;
+            align-items: center;
+            margin-bottom: 15px;
+            padding-bottom: 10px;
+            border-bottom: 1px solid #eee;
+        }
+
+        .device-image-small {
+            width: 50px;
+            height: 50px;
+            object-fit: contain;
+            margin-right: 15px;
+        }
+
+        .device-status {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .device-status-indicator {
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            background-color: #ccc;
+        }
+
+        .device-status-text {
+            font-size: 14px;
+            color: #666;
+        }
+
+        .angles-container {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .angles-content {
+            display: flex;
+            height: calc(100% - 50px);
+            gap: 15px;
+            align-items: stretch;
+            /* 确保子元素拉伸到相同高度 */
+        }
+
+        .skeleton-container {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            background: #f8f9fa;
+            border-radius: 8px;
+            padding: 10px;
+            border: 1px solid #e9ecef;
+            overflow: hidden;
             height: 100%;
-            /* 占满容器高度 */
+            /* 确保高度填充父容器 */
+        }
+
+        .skeleton-image {
+            max-width: 95%;
+            max-height: 95%;
+            object-fit: contain;
+            margin: 0 auto;
+        }
+
+        .finger-data {
+            flex: 1.2;
+            display: flex;
+            flex-wrap: wrap;
+            gap: 5px;
+            overflow-y: auto;
+            padding-right: 5px;
+            align-content: flex-start;
+            justify-content: space-between;
+            height: 100%;
+            /* 确保与图片容器等高 */
         }
 
         #camera-feed {
@@ -77,162 +153,112 @@
             height: calc(100% - 40px);
             /* 减去标题高度 */
             object-fit: contain;
-            border-radius: 8px;
+            border-radius: 4px;
         }
 
-        /* EMG数据显示区域 */
         .emg-container {
-            background: white;
-            border-radius: 12px;
-            box-shadow: var(--shadow);
-            padding: 15px;
-            display: flex;
-            flex-direction: column;
-            height: 100%;
-            /* 占满容器高度 */
+            padding: 20px;
         }
 
         .emg-charts-grid {
             display: grid;
-            grid-template-columns: repeat(2, 1fr);
-            grid-template-rows: repeat(4, 1fr);
+            grid-template-columns: repeat(8, 1fr);
+            /* 8个通道横向排列 */
             gap: 10px;
-            flex: 1;
-        }
-
-        .emg-chart {
-            min-height: 120px;
-            /* 增加图表高度 */
-            background: var(--gray-100);
-            border-radius: 6px;
-        }
-
-        /* 手部关节角度数据显示区域 */
-        .lower-section {
-            background: white;
-            border-radius: 12px;
-            box-shadow: var(--shadow);
-            padding: 20px;
-        }
-
-        .angles-container {
-            display: grid;
-            grid-template-columns: repeat(5, 1fr);
-            gap: 15px;
             margin-top: 15px;
         }
 
-        /* 优化关节角度卡片样式 */
-        .finger-card {
-            background: white;
-            border-radius: 12px;
-            padding: 15px;
-            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        .emg-chart {
+            height: 200px;
+            /* 调整EMG图表高度 */
         }
 
-        .finger-title {
-            text-align: center;
-            font-size: 16px;
-            font-weight: bold;
-            margin-bottom: 15px;
-            color: #333;
-        }
-
-        .joint-data {
-            display: flex;
-            flex-direction: column;
-            gap: 15px;
-        }
-
-        .joint-item {
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-        }
-
-        .progress-circle {
-            position: relative;
-            width: 80px;
-            height: 80px;
-        }
-
-        .progress-ring {
-            transform: rotate(-90deg);
-            width: 80px;
-            height: 80px;
-        }
-
-        .progress-ring-circle-bg {
-            fill: none;
-            stroke: #edf2f7;
-            stroke-width: 8;
-        }
-
-        .progress-ring-circle {
-            fill: none;
-            stroke-width: 8;
-            stroke-linecap: round;
-            transition: stroke-dashoffset 0.3s ease;
-        }
-
-        .progress-ring-circle.flexion {
-            stroke: #4CAF50;
-        }
-
-        .progress-ring-circle.abduction {
-            stroke: #2196F3;
-        }
-
-        .angle-value {
-            position: absolute;
-            top: 50%;
-            left: 50%;
-            transform: translate(-50%, -50%);
-            font-size: 14px;
-            font-weight: bold;
-            color: #333;
-        }
-
-        .joint-label {
-            margin-top: 5px;
-            font-size: 12px;
-            color: #666;
-        }
-
-        /* 统计数据样式 */
-        .stats-row {
-            display: none;
-        }
-
-        /* 标题样式 */
         .section-header {
             display: flex;
             justify-content: space-between;
             align-items: center;
             margin-bottom: 15px;
+            padding-bottom: 10px;
+            border-bottom: 1px solid #eee;
         }
 
         .section-title {
-            font-size: 1.1em;
-            font-weight: 600;
+            font-size: 16px;
+            font-weight: bold;
             color: #333;
             display: flex;
             align-items: center;
-            gap: 8px;
+        }
+
+        .device-icon {
+            width: 30px;
+            height: 30px;
+            object-fit: contain;
+            margin-right: 10px;
         }
 
         .data-indicator {
             width: 8px;
             height: 8px;
             border-radius: 50%;
+            display: inline-block;
+            margin-left: 8px;
         }
 
         .data-indicator.active {
-            background: var(--success-color);
+            background-color: #28a745;
         }
 
         .data-indicator.inactive {
-            background: var(--danger-color);
+            background-color: #dc3545;
+        }
+
+        .finger-section {
+            background: #f8f9fa;
+            padding: 8px;
+            border-radius: 8px;
+            border: 1px solid #e9ecef;
+            font-size: 12px;
+            width: calc(50% - 4px);
+            box-sizing: border-box;
+            margin-bottom: 6px;
+        }
+
+        /* 针对拇指的特殊处理，因为数据较少 */
+        .finger-section.thumb {
+            width: calc(50% - 4px);
+        }
+
+        /* 针对小指的特殊处理，确保在底部正确显示 */
+        .finger-section.pinky {
+            width: calc(50% - 4px);
+        }
+
+        /* 针对食指、中指和无名指的处理 */
+        .finger-section.index,
+        .finger-section.middle,
+        .finger-section.ring {
+            width: calc(50% - 4px);
+        }
+
+        .finger-section h4 {
+            margin: 0 0 4px 0;
+            color: #333;
+            font-size: 13px;
+            border-bottom: 2px solid #007bff;
+            padding-bottom: 2px;
+        }
+
+        .joint-angle {
+            display: flex;
+            justify-content: space-between;
+            padding: 2px 0;
+            font-size: 11px;
+            border-bottom: 1px solid #eee;
+        }
+
+        .joint-angle span:last-child {
+            font-weight: bold;
         }
 
         .controls {
@@ -311,33 +337,91 @@
             background: #555;
         }
 
-        /* 手指关节数据容器 */
-        .joint-data-container {
-            display: grid;
-            grid-template-columns: repeat(5, 1fr);
+        /* 新增样式 */
+        .stats-container {
+            display: flex;
             gap: 15px;
-            padding: 20px;
+            margin-top: 10px;
+            flex-wrap: wrap;
+        }
+
+        .stat-item {
             background: #f8f9fa;
-            border-radius: 15px;
-            margin-top: 20px;
+            padding: 8px 12px;
+            border-radius: 4px;
+            font-size: 12px;
+            display: flex;
+            align-items: center;
+            border: 1px solid #e9ecef;
         }
 
-        /* 关节类型标签 */
-        .movement-type {
-            font-size: 10px;
-            padding: 2px 8px;
-            border-radius: 10px;
-            margin-top: 5px;
+        .stat-label {
+            font-weight: bold;
+            margin-right: 5px;
+            color: #495057;
         }
 
-        .movement-type.flexion {
-            background: #E8F5E9;
-            color: #4CAF50;
+        .stat-value {
+            color: #007bff;
         }
 
-        .movement-type.abduction {
-            background: #E3F2FD;
-            color: #2196F3;
+        .stat-value.warning {
+            color: #ffc107;
+        }
+
+        .stat-value.danger {
+            color: #dc3545;
+        }
+
+        .emg-mode-selector {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 10px;
+        }
+
+        .mode-btn {
+            padding: 5px 10px;
+            font-size: 12px;
+            background: #e9ecef;
+            color: #495057;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+
+        .mode-btn.active {
+            background: #007bff;
+            color: white;
+        }
+
+        .camera-stats {
+            display: flex;
+            gap: 10px;
+            margin-top: 10px;
+        }
+
+        /* 系统控制区域 */
+        .system-controls {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            margin-bottom: 20px;
+            background: white;
+            border-radius: 8px;
+            padding: 15px;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        }
+
+        .system-status {
+            margin-bottom: 15px;
+            text-align: center;
+        }
+
+        .control-buttons {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            justify-content: center;
         }
     </style>
 </head>
@@ -347,14 +431,17 @@
         <h1>多模态数据采集系统</h1>
     </div>
 
-    <div class="status-bar">
-        <div id="myo-status" class="status">Myo状态: 检查中...</div>
-        <div class="controls">
+    <!-- 系统控制区域 -->
+    <div class="system-controls">
+        <div class="system-status">
+            <div id="status" class="status">系统状态: 初始化中...</div>
+            <div id="myo-status" class="status">Myo状态: 检查中...</div>
+        </div>
+        <div class="control-buttons">
             <button id="recordBtn" onclick="toggleRecording()">开始记录</button>
             <button onclick="resetData()" class="reset-btn">重置数据</button>
             <button onclick="resetMyoConnection()" class="reset-btn">重置Myo连接</button>
         </div>
-        <div id="status" class="status">系统状态: 初始化中...</div>
     </div>
 
     <div class="main-container">
@@ -362,29 +449,40 @@
             <div class="camera-container">
                 <div class="section-header">
                     <div class="section-title">
+                        <img src="{{ url_for('static', filename='images/realsense_camera.png') }}" alt="RealSense相机"
+                            class="device-icon">
                         手部追踪
                         <span class="data-indicator" id="camera-indicator"></span>
+                        <span class="device-status-text" id="realsense-connection-text"
+                            style="margin-left: 8px; font-size: 12px; color: #666;"></span>
+                    </div>
+                    <div class="camera-stats">
+                        <span class="stat-item">
+                            <span class="stat-label">帧率:</span>
+                            <span class="stat-value" id="camera-fps">0 FPS</span>
+                        </span>
+                        <span class="stat-item">
+                            <span class="stat-label">总帧数:</span>
+                            <span class="stat-value" id="camera-total-frames">0</span>
+                        </span>
                     </div>
                 </div>
                 <img id="camera-feed" src="" alt="Camera Feed">
             </div>
 
-            <div class="emg-container">
+            <div class="angles-container">
                 <div class="section-header">
                     <div class="section-title">
-                        EMG数据
-                        <span class="data-indicator" id="emg-indicator"></span>
+                        手部关节角度数据
+                        <span class="data-indicator" id="angles-indicator"></span>
                     </div>
                 </div>
-                <div class="emg-charts-grid">
-                    <div class="emg-chart" id="emg-chart-1"></div>
-                    <div class="emg-chart" id="emg-chart-2"></div>
-                    <div class="emg-chart" id="emg-chart-3"></div>
-                    <div class="emg-chart" id="emg-chart-4"></div>
-                    <div class="emg-chart" id="emg-chart-5"></div>
-                    <div class="emg-chart" id="emg-chart-6"></div>
-                    <div class="emg-chart" id="emg-chart-7"></div>
-                    <div class="emg-chart" id="emg-chart-8"></div>
+                <div class="angles-content">
+                    <div class="skeleton-container">
+                        <img src="{{ url_for('static', filename='images/hand_skeleton.png') }}" alt="手部骨骼"
+                            class="skeleton-image">
+                    </div>
+                    <div class="finger-data" id="angles-display"></div>
                 </div>
             </div>
         </div>
@@ -392,58 +490,42 @@
         <div class="lower-section">
             <div class="section-header">
                 <div class="section-title">
-                    手部关节角度数据
-                    <span class="data-indicator" id="angles-indicator"></span>
+                    <img src="{{ url_for('static', filename='images/myo_armband.png') }}" alt="Myo臂环"
+                        class="device-icon">
+                    EMG数据
+                    <span class="data-indicator" id="emg-indicator"></span>
+                    <span class="device-status-text" id="myo-connection-text"
+                        style="margin-left: 8px; font-size: 12px; color: #666;"></span>
+                </div>
+                <!-- EMG模式选择器 -->
+                <div class="emg-mode-selector">
+                    <button class="mode-btn active" id="filtered-mode-btn"
+                        onclick="switchEMGMode('filtered')">滤波后数据</button>
+                    <button class="mode-btn" id="raw-mode-btn" onclick="switchEMGMode('raw')">原始数据</button>
                 </div>
             </div>
-            <div class="joint-data-container">
-                <!-- 拇指 -->
-                <div class="finger-card">
-                    <div class="finger-title">拇指</div>
-                    <div class="joint-data">
-                        <!-- 屈曲角度 -->
-                        <div class="joint-item">
-                            <div class="progress-circle" id="thumb-flexion">
-                                <svg class="progress-ring">
-                                    <circle class="progress-ring-circle-bg" cx="40" cy="40" r="32"></circle>
-                                    <circle class="progress-ring-circle flexion" cx="40" cy="40" r="32"></circle>
-                                </svg>
-                                <div class="angle-value">0°</div>
-                            </div>
-                            <div class="joint-label">屈曲</div>
-                        </div>
-                        <!-- 外展角度 -->
-                        <div class="joint-item">
-                            <div class="progress-circle" id="thumb-abduction">
-                                <svg class="progress-ring">
-                                    <circle class="progress-ring-circle-bg" cx="40" cy="40" r="32"></circle>
-                                    <circle class="progress-ring-circle abduction" cx="40" cy="40" r="32"></circle>
-                                </svg>
-                                <div class="angle-value">0°</div>
-                            </div>
-                            <div class="joint-label">外展</div>
-                        </div>
-                    </div>
-                </div>
 
-                <!-- 食指 -->
-                <div class="finger-card">
-                    <div class="finger-title">食指</div>
-                    <div class="joint-data">
-                        <div class="joint-item">
-                            <div class="progress-circle" id="index-flexion">
-                                <svg class="progress-ring">
-                                    <circle class="progress-ring-circle-bg" cx="40" cy="40" r="32"></circle>
-                                    <circle class="progress-ring-circle flexion" cx="40" cy="40" r="32"></circle>
-                                </svg>
-                                <div class="angle-value">0°</div>
-                            </div>
-                            <div class="joint-label">屈曲</div>
-                        </div>
-                    </div>
+            <!-- EMG统计信息 -->
+            <div class="stats-container">
+                <div class="stat-item">
+                    <span class="stat-label">帧率:</span>
+                    <span class="stat-value" id="frame-rate">0 FPS</span>
                 </div>
+                <div class="stat-item">
+                    <span class="stat-label">总帧数:</span>
+                    <span class="stat-value" id="total-frames">0</span>
+                </div>
+            </div>
 
-                <!-- 其他手指类似... -->
+            <div class="emg-charts-grid">
+                <div class="emg-chart" id="emg-chart-1"></div>
+                <div class="emg-chart" id="emg-chart-2"></div>
+                <div class="emg-chart" id="emg-chart-3"></div>
+                <div class="emg-chart" id="emg-chart-4"></div>
+                <div class="emg-chart" id="emg-chart-5"></div>
+                <div class="emg-chart" id="emg-chart-6"></div>
+                <div class="emg-chart" id="emg-chart-7"></div>
+                <div class="emg-chart" id="emg-chart-8"></div>
             </div>
         </div>
     </div>
@@ -454,17 +536,21 @@
                 this.isRunning = true;
                 this.isRecording = false;
                 this.recordedData = [];
-                this.MAX_POINTS = 100;
+                this.MAX_POINTS = 200;
                 this.emgDataPoints = Array(8).fill().map(() => Array(this.MAX_POINTS).fill(0));
+                this.rawEmgDataPoints = Array(8).fill().map(() => Array(this.MAX_POINTS).fill(0));
+                this.filteredEmgDataPoints = Array(8).fill().map(() => Array(this.MAX_POINTS).fill(0));
+                this.currentEMGMode = 'filtered'; // 默认显示滤波后数据
                 this.initCharts();
                 this.fetchData();
                 this.checkMyoStatus();
+                this.updateDeviceIndicators(); // 添加设备状态指示器更新
             }
 
             initCharts() {
                 for (let i = 0; i < 8; i++) {
                     const trace = {
-                        y: this.emgDataPoints[i],
+                        y: this.filteredEmgDataPoints[i],
                         mode: 'lines',
                         line: { color: `hsl(${i * 45}, 70%, 50%)` },
                         name: `通道 ${i + 1}`
@@ -472,7 +558,7 @@
 
                     const layout = {
                         title: `EMG ${i + 1}`,
-                        height: 120, // 增加图表高度
+                        height: 200,
                         margin: { t: 25, b: 20, l: 30, r: 20 },
                         paper_bgcolor: 'rgba(0,0,0,0)',
                         plot_bgcolor: 'rgba(0,0,0,0)',
@@ -497,12 +583,41 @@
             }
 
             updateEMGCharts(emgData) {
+                const rawData = emgData.raw_emg;
+                const filteredData = emgData.filtered_emg;
+
+                // 更新数据缓冲区
                 for (let i = 0; i < 8; i++) {
-                    this.emgDataPoints[i].shift();
-                    this.emgDataPoints[i].push(emgData[i]);
+                    this.rawEmgDataPoints[i].shift();
+                    this.rawEmgDataPoints[i].push(rawData[i]);
+
+                    this.filteredEmgDataPoints[i].shift();
+                    this.filteredEmgDataPoints[i].push(filteredData[i]);
+
+                    // 根据当前模式选择显示的数据
+                    const displayData = this.currentEMGMode === 'raw' ?
+                        this.rawEmgDataPoints[i] : this.filteredEmgDataPoints[i];
 
                     Plotly.update(`emg-chart-${i + 1}`, {
-                        y: [this.emgDataPoints[i]]
+                        y: [displayData]
+                    }, {}, { duration: 0 });
+                }
+            }
+
+            switchEMGMode(mode) {
+                this.currentEMGMode = mode;
+
+                // 更新按钮状态
+                document.getElementById('raw-mode-btn').classList.toggle('active', mode === 'raw');
+                document.getElementById('filtered-mode-btn').classList.toggle('active', mode === 'filtered');
+
+                // 更新图表显示
+                for (let i = 0; i < 8; i++) {
+                    const displayData = mode === 'raw' ?
+                        this.rawEmgDataPoints[i] : this.filteredEmgDataPoints[i];
+
+                    Plotly.update(`emg-chart-${i + 1}`, {
+                        y: [displayData]
                     }, {}, { duration: 0 });
                 }
             }
@@ -519,12 +634,34 @@
                             (data.synced ? '已连接且同步' : '已连接待同步') :
                             '未连接';
                         this.updateMyoStatus(statusText, !data.connected);
+
+                        // 更新EMG统计信息
+                        this.updateEMGStats(data);
                     }
                 } catch (error) {
                     this.updateMyoStatus('状态检查失败', true);
                 }
 
                 setTimeout(() => this.checkMyoStatus(), 1000);
+            }
+
+            updateEMGStats(data) {
+                // 更新帧率
+                const frameRateElement = document.getElementById('frame-rate');
+                frameRateElement.textContent = `${data.frame_rate.toFixed(1)} FPS`;
+
+                // 根据帧率设置颜色
+                if (data.frame_rate < 100) {
+                    frameRateElement.className = 'stat-value warning';
+                } else if (data.frame_rate < 50) {
+                    frameRateElement.className = 'stat-value danger';
+                } else {
+                    frameRateElement.className = 'stat-value';
+                }
+
+                // 更新总帧数
+                document.getElementById('total-frames').textContent = data.total_frames;
+
             }
 
             updateMyoStatus(message, isError = false) {
@@ -542,51 +679,86 @@
             updateAngles(handData) {
                 if (!handData || Object.keys(handData).length === 0) {
                     document.getElementById('angles-display').innerHTML =
-                        '<div class="finger-card">未检测到手部</div>';
+                        '<div class="finger-section">未检测到手部</div>';
                     return;
                 }
 
                 const display = document.getElementById('angles-display');
                 display.innerHTML = '';
 
+                // 调整手指顺序，使布局更加均衡
                 const fingers = ['thumb', 'index', 'middle', 'ring', 'pinky'];
-                const joints = ['mcp', 'pip', 'dip'];
                 const movements = ['flexion', 'abduction'];
 
-                fingers.forEach(finger => {
-                    const card = document.createElement('div');
-                    card.className = 'finger-card';
-                    let html = `<div class="finger-title">${this.getFingerName(finger)}</div>`;
-                    html += '<div class="joint-data">';
+                // 创建一个包装容器来控制整体布局
+                const wrapper = document.createElement('div');
+                wrapper.style.width = '100%';
+                wrapper.style.display = 'flex';
+                wrapper.style.flexWrap = 'wrap';
+                wrapper.style.justifyContent = 'space-between';
+                wrapper.style.alignItems = 'flex-start';
 
-                    joints.forEach(joint => {
+                // 创建上排容器（拇指、食指）
+                const topRow = document.createElement('div');
+                topRow.style.width = '100%';
+                topRow.style.display = 'flex';
+                topRow.style.justifyContent = 'space-between';
+                topRow.style.marginBottom = '6px';
+
+                // 创建中排容器（中指、无名指）
+                const middleRow = document.createElement('div');
+                middleRow.style.width = '100%';
+                middleRow.style.display = 'flex';
+                middleRow.style.justifyContent = 'space-between';
+                middleRow.style.marginBottom = '6px';
+
+                // 创建下排容器（小指）
+                const bottomRow = document.createElement('div');
+                bottomRow.style.width = '100%';
+                bottomRow.style.display = 'flex';
+                bottomRow.style.justifyContent = 'center';
+
+                // 将手指分配到不同行
+                fingers.forEach((finger, index) => {
+                    const section = document.createElement('div');
+                    section.className = `finger-section ${finger}`;
+                    let html = `<h4>${this.getFingerName(finger)}</h4>`;
+
+                    ['mcp', 'pip', 'dip'].forEach(joint => {
                         movements.forEach(movement => {
                             const angleKey = `${finger}_${joint}_${movement}`;
                             if (angleKey in handData) {
                                 const angle = handData[angleKey];
-                                const maxAngle = movement === 'flexion' ? 90 : 30;
-                                const percentage = Math.min((Math.abs(angle) / maxAngle) * 100, 100);
-
+                                const color = movement === 'flexion' ? '#28a745' : '#007bff';
                                 html += `
-                                    <div class="joint-item">
-                                        <div class="progress-circle" id="${finger}-${movement}">
-                                            <svg class="progress-ring">
-                                                <circle class="progress-ring-circle-bg" cx="40" cy="40" r="32"></circle>
-                                                <circle class="progress-ring-circle ${movement}" cx="40" cy="40" r="32"></circle>
-                                            </svg>
-                                            <div class="angle-value">${angle.toFixed(1)}°</div>
-                                        </div>
-                                        <div class="joint-label">${this.getJointName(joint)}</div>
+                                    <div class="joint-angle">
+                                        <span>${this.getJointName(joint)} ${this.getMovementName(movement)}</span>
+                                        <span style="color: ${color}">${angle.toFixed(1)}°</span>
                                     </div>
                                 `;
                             }
                         });
                     });
 
-                    html += '</div>';
-                    card.innerHTML = html;
-                    display.appendChild(card);
+                    section.innerHTML = html;
+
+                    // 根据手指类型分配到不同行
+                    if (finger === 'thumb' || finger === 'index') {
+                        topRow.appendChild(section);
+                    } else if (finger === 'middle' || finger === 'ring') {
+                        middleRow.appendChild(section);
+                    } else if (finger === 'pinky') {
+                        bottomRow.appendChild(section);
+                    }
                 });
+
+                // 将所有行添加到主容器
+                wrapper.appendChild(topRow);
+                wrapper.appendChild(middleRow);
+                wrapper.appendChild(bottomRow);
+
+                // 将主容器添加到显示区域
+                display.appendChild(wrapper);
             }
 
             getFingerName(finger) {
@@ -622,8 +794,8 @@
 
                 // 更新EMG数据指示器
                 const emgIndicator = document.getElementById('emg-indicator');
-                emgIndicator.className = 'data-indicator ' +
-                    (data.emg_data.some(v => v !== 0) ? 'active' : 'inactive');
+                const hasEmgData = data.emg_data.raw_emg && data.emg_data.raw_emg.some(v => v !== 0);
+                emgIndicator.className = 'data-indicator ' + (hasEmgData ? 'active' : 'inactive');
 
                 // 更新角度数据指示器
                 const anglesIndicator = document.getElementById('angles-indicator');
@@ -637,6 +809,8 @@
                 try {
                     const response = await fetch('/get_data');
                     const data = await response.json();
+
+                    console.log("相机帧率:", data.camera_fps, "总帧数:", data.camera_total_frames); // 调试输出
 
                     if (data.status === 'success') {
                         // 更新数据指示器
@@ -655,6 +829,9 @@
                         if (data.hand_data) {
                             this.updateAngles(data.hand_data);
                         }
+
+                        // 更新相机统计信息
+                        this.updateCameraStats(data);
 
                         if (this.isRecording) {
                             this.recordedData.push({
@@ -678,6 +855,37 @@
                 requestAnimationFrame(() => this.fetchData());
             }
 
+            updateCameraStats(data) {
+                try {
+                    // 更新相机帧率
+                    if (data.camera_fps !== undefined) {
+                        const camerafpsElement = document.getElementById('camera-fps');
+                        if (camerafpsElement) {
+                            camerafpsElement.textContent = `${data.camera_fps} FPS`;
+
+                            // 根据帧率设置颜色
+                            if (data.camera_fps < 20) {
+                                camerafpsElement.className = 'stat-value danger';
+                            } else if (data.camera_fps < 25) {
+                                camerafpsElement.className = 'stat-value warning';
+                            } else {
+                                camerafpsElement.className = 'stat-value';
+                            }
+                        }
+                    }
+
+                    // 更新相机总帧数
+                    if (data.camera_total_frames !== undefined) {
+                        const cameraTotalFramesElement = document.getElementById('camera-total-frames');
+                        if (cameraTotalFramesElement) {
+                            cameraTotalFramesElement.textContent = data.camera_total_frames;
+                        }
+                    }
+                } catch (error) {
+                    console.error('更新相机统计信息错误:', error);
+                }
+            }
+
             toggleRecording() {
                 this.isRecording = !this.isRecording;
                 const btn = document.getElementById('recordBtn');
@@ -685,30 +893,77 @@
                 if (this.isRecording) {
                     btn.textContent = '停止记录';
                     btn.classList.add('recording');
+
+                    // 发送请求到后端开始记录
+                    fetch('/record_action', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify({
+                            subject_id: 'subject1', // 可以从表单获取
+                            action: 'action1',      // 可以从表单获取
+                            trial: 1,               // 可以从表单获取
+                            dominant_hand: 'right'  // 可以从表单获取
+                        })
+                    })
+                        .then(response => response.json())
+                        .then(data => {
+                            if (data.status === 'success') {
+                                this.updateStatus('开始记录数据');
+                            } else {
+                                this.updateStatus('开始记录失败: ' + data.message, true);
+                                this.isRecording = false;
+                                btn.textContent = '开始记录';
+                                btn.classList.remove('recording');
+                            }
+                        })
+                        .catch(error => {
+                            this.updateStatus('请求错误: ' + error.message, true);
+                            this.isRecording = false;
+                            btn.textContent = '开始记录';
+                            btn.classList.remove('recording');
+                        });
                 } else {
                     btn.textContent = '开始记录';
                     btn.classList.remove('recording');
-                    this.saveRecordedData();
+
+                    // 发送请求到后端停止记录
+                    fetch('/stop_recording', {
+                        method: 'POST'
+                    })
+                        .then(response => response.json())
+                        .then(data => {
+                            if (data.status === 'success') {
+                                this.updateStatus('记录已停止并保存到: ' + data.filepath);
+                                this.recordedData = []; // 清空本地缓存的数据
+                            } else {
+                                this.updateStatus('停止记录失败: ' + data.message, true);
+                            }
+                        })
+                        .catch(error => {
+                            this.updateStatus('请求错误: ' + error.message, true);
+                        });
                 }
             }
 
-            saveRecordedData() {
-                if (this.recordedData.length > 0) {
-                    const blob = new Blob(
-                        [JSON.stringify(this.recordedData, null, 2)],
-                        { type: 'application/json' }
-                    );
-                    const url = URL.createObjectURL(blob);
-                    const a = document.createElement('a');
-                    a.href = url;
-                    a.download = `multimodal_data_${new Date().toISOString()}.json`;
-                    document.body.appendChild(a);
-                    a.click();
-                    document.body.removeChild(a);
-                    URL.revokeObjectURL(url);
-                    this.recordedData = [];
-                }
-            }
+            // saveRecordedData() {
+            //     if (this.recordedData.length > 0) {
+            //         const blob = new Blob(
+            //             [JSON.stringify(this.recordedData, null, 2)],
+            //             { type: 'application/json' }
+            //         );
+            //         const url = URL.createObjectURL(blob);
+            //         const a = document.createElement('a');
+            //         a.href = url;
+            //         a.download = `multimodal_data_${new Date().toISOString()}.json`;
+            //         document.body.appendChild(a);
+            //         a.click();
+            //         document.body.removeChild(a);
+            //         URL.revokeObjectURL(url);
+            //         this.recordedData = [];
+            //     }
+            // }
 
             resetData() {
                 this.recordedData = [];
@@ -716,7 +971,19 @@
             }
 
             resetMyoConnection() {
-                // Implementation needed
+                // 发送重置Myo连接的请求
+                fetch('/reset_myo', { method: 'POST' })
+                    .then(response => response.json())
+                    .then(data => {
+                        if (data.status === 'success') {
+                            this.updateStatus('Myo连接已重置');
+                        } else {
+                            this.updateStatus('Myo连接重置失败: ' + data.message, true);
+                        }
+                    })
+                    .catch(error => {
+                        this.updateStatus('Myo连接重置请求失败: ' + error.message, true);
+                    });
             }
 
             stop() {
@@ -724,6 +991,36 @@
                 if (this.isRecording) {
                     this.toggleRecording();
                 }
+            }
+
+            // 添加设备状态指示器更新方法
+            updateDeviceIndicators() {
+                // 定期更新设备指示器状态
+                setInterval(() => {
+                    // 更新Myo指示器
+                    const myoConnected = document.getElementById('myo-status').classList.contains('success');
+                    const myoText = document.getElementById('myo-connection-text');
+
+                    if (myoConnected) {
+                        myoText.textContent = '已连接';
+                        document.getElementById('emg-indicator').style.backgroundColor = '#28a745'; // 绿色
+                    } else {
+                        myoText.textContent = '未连接';
+                        document.getElementById('emg-indicator').style.backgroundColor = '#dc3545'; // 红色
+                    }
+
+                    // 更新RealSense指示器
+                    const realsenseConnected = document.getElementById('camera-indicator').classList.contains('active');
+                    const realsenseText = document.getElementById('realsense-connection-text');
+
+                    if (realsenseConnected) {
+                        realsenseText.textContent = '已连接';
+                        document.getElementById('camera-indicator').style.backgroundColor = '#28a745'; // 绿色
+                    } else {
+                        realsenseText.textContent = '未连接';
+                        document.getElementById('camera-indicator').style.backgroundColor = '#dc3545'; // 红色
+                    }
+                }, 1000);
             }
         }
 
@@ -743,53 +1040,13 @@
             collector.resetMyoConnection();
         }
 
+        function switchEMGMode(mode) {
+            collector.switchEMGMode(mode);
+        }
+
         // 页面关闭时清理
         window.addEventListener('beforeunload', () => {
             collector.stop();
-        });
-
-        // 初始化进度圈
-        function initProgressCircles() {
-            const circles = document.querySelectorAll('.progress-ring-circle');
-            circles.forEach(circle => {
-                const radius = circle.getAttribute('r');
-                const circumference = 2 * Math.PI * radius;
-                circle.style.strokeDasharray = `${circumference} ${circumference}`;
-                circle.style.strokeDashoffset = circumference;
-            });
-        }
-
-        // 更新进度圈
-        function setProgress(elementId, angle, maxAngle) {
-            const circle = document.querySelector(`#${elementId} .progress-ring-circle`);
-            const angleDisplay = document.querySelector(`#${elementId} .angle-value`);
-            const radius = circle.getAttribute('r');
-            const circumference = 2 * Math.PI * radius;
-
-            // 计算进度（0-100%）
-            const progress = Math.min(Math.max((Math.abs(angle) / maxAngle) * 100, 0), 100);
-
-            // 更新进度圈
-            const offset = circumference - (progress / 100 * circumference);
-            circle.style.strokeDashoffset = offset;
-
-            // 更新角度显示
-            angleDisplay.textContent = `${angle.toFixed(1)}°`;
-        }
-
-        // 页面加载时初始化
-        document.addEventListener('DOMContentLoaded', initProgressCircles);
-
-        // 接收数据更新
-        socket.on('hand_data', function (data) {
-            // 更新拇指数据
-            setProgress('thumb-flexion', data.thumb_flexion, 90);
-            setProgress('thumb-abduction', data.thumb_abduction, 90);
-
-            // 更新食指数据
-            setProgress('index-flexion', data.index_flexion, 90);
-
-            // 更新其他手指数据...
         });
     </script>
 </body>

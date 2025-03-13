@@ -279,39 +279,70 @@ class HandAngleCalculator:
         
         return None
     
-    # def visualize_angles(self, frame, landmarks, angles):
-    #     """可视化关节角度"""
-    #     height, width = frame.shape[:2]
+    def draw_global_coordinate_system(self, image, scale=30):
+        """绘制全局坐标系"""
+        h, w = image.shape[:2]
+        origin = (50, h - 50)  # 将原点放在左下角附近
         
-    #     # 绘制坐标系
-    #     origin, rotation_matrix = self.create_hand_coordinate_system(landmarks)
-    #     origin_px = tuple(map(int, [
-    #         origin[0] * width,
-    #         origin[1] * height
-    #     ]))
+        # 绘制坐标轴
+        cv2.line(image, origin, (origin[0] + scale, origin[1]), (0, 0, 255), 2)  # X轴-红色
+        cv2.line(image, origin, (origin[0], origin[1] - scale), (0, 255, 0), 2)  # Y轴-绿色
+        cv2.line(image, origin, (origin[0] + int(scale/2), origin[1] - int(scale/2)), (255, 0, 0), 2)  # Z轴-蓝色
         
-    #     # 绘制关节角度
-    #     for name, angle in angles.items():
-    #         # 解析角度名称
-    #         parts = name.split('_')
-    #         if len(parts) < 3:
-    #             continue
-                
-    #         finger, joint, movement = parts
-            
-    #         # 获取关节位置
-    #         joint_idx = self.get_joint_index(finger, joint)
-    #         if joint_idx is None:
-    #             continue
-                
-    #         px = int(landmarks.landmark[joint_idx].x * width)
-    #         py = int(landmarks.landmark[joint_idx].y * height)
-            
-    #         # 根据运动类型选择颜色
-    #         color = (0, 255, 0) if movement == 'flexion' else (255, 0, 0)
-            
-    #         # 显示角度值
-    #         cv2.putText(frame, f"{angle:.1f}°", 
-    #                    (px, py), cv2.FONT_HERSHEY_SIMPLEX, 
-    #                    0.3, color, 1)
+        # 添加标签
+        cv2.putText(image, 'X', (origin[0] + scale + 10, origin[1]), 
+                    cv2.FONT_HERSHEY_SIMPLEX, 0.8, (0, 0, 255), 2)
+        cv2.putText(image, 'Y', (origin[0], origin[1] - scale - 10), 
+                    cv2.FONT_HERSHEY_SIMPLEX, 0.8, (0, 255, 0), 2)
+        cv2.putText(image, 'Z', (origin[0] + int(scale/2) + 10, origin[1] - int(scale/2)), 
+                    cv2.FONT_HERSHEY_SIMPLEX, 0.8, (255, 0, 0), 2)
+        cv2.putText(image, 'Global', (origin[0] - 30, origin[1] + 30), 
+                    cv2.FONT_HERSHEY_SIMPLEX, 0.8, (255, 255, 255), 2)
 
+  
+
+            
+ 
+            
+
+    def draw_hand_coordinate_system(self, image, origin, rotation_matrix, scale=100):
+        """绘制手部坐标系，简化显示效果
+        Args:
+            image: OpenCV图像
+            origin: 坐标系原点 [x, y, z]
+            rotation_matrix: 旋转矩阵
+            scale: 坐标轴长度缩放因子
+        """
+        # 将3D原点转换为2D图像坐标
+        origin_2d = (int(origin[0] * image.shape[1]), int(origin[1] * image.shape[0]))
+        
+        # 优化颜色方案
+        colors = [
+            (0, 0, 255),    # X轴：纯红色
+            (0, 255, 0),    # Y轴：纯绿色
+            (255, 0, 0)     # Z轴：纯蓝色
+        ]
+        labels = ['X', 'Y', 'Z']
+        
+        # 绘制原点标记（仅保留白色圆点）
+        cv2.circle(image, origin_2d, 3, (255, 255, 255), -1)
+        
+        for i in range(3):
+            axis = rotation_matrix[:, i]
+            # 调整缩放因子以获得合适的轴长
+            endpoint = origin + axis * (scale/800)
+            endpoint_2d = (int(endpoint[0] * image.shape[1]), 
+                        int(endpoint[1] * image.shape[0]))
+            
+            # 绘制坐标轴
+            cv2.line(image, origin_2d, endpoint_2d, colors[i], 2, cv2.LINE_AA)
+            
+            # 计算标签位置
+            label_pos = (
+                endpoint_2d[0] + (5 if endpoint_2d[0] > origin_2d[0] else -15),
+                endpoint_2d[1] + (15 if endpoint_2d[1] > origin_2d[1] else -5)
+            )
+            
+            # 直接绘制文本，无边框
+            cv2.putText(image, labels[i], label_pos, 
+                    cv2.FONT_HERSHEY_SIMPLEX, 0.5, colors[i], 2, cv2.LINE_AA)
