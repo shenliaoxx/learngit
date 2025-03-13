@@ -18,13 +18,31 @@ data_collector = None
 def process_realsense():
     global realsense_collector
     print("开始处理RealSense数据流")
+    frame_time = 1.0 / 35  # 目标处理帧率略高于相机帧率，设为35FPS
+    last_process_time = time.perf_counter()
+    
     while realsense_collector.is_running:
         try:
-            realsense_collector.process_frame()
-            # time.sleep(0.01)
+            current_time = time.perf_counter()
+            elapsed = current_time - last_process_time
+            
+            # 控制处理频率
+            if elapsed >= frame_time:
+                realsense_collector.process_frame()
+                last_process_time = current_time
+                
+                # 动态调整处理间隔
+                sleep_time = max(0, frame_time - (time.perf_counter() - current_time))
+                if sleep_time > 0:
+                    time.sleep(sleep_time / 2)  # 减少一半休眠时间，确保不会错过帧
+            else:
+                # 短暂休眠，避免CPU占用过高
+                time.sleep(0.001)
         except Exception as e:
             print(f"RealSense处理错误: {e}")
-            time.sleep(1)
+            import traceback
+            print(traceback.format_exc())
+            time.sleep(0.1)  # 错误后短暂休眠
 
 @app.route('/')
 def index():
@@ -124,6 +142,7 @@ def get_data():
             'timestamp': time.time(),
             'camera_fps': camera_stats.get('camera_fps', 0),
             'camera_total_frames': camera_stats.get('camera_total_frames', 0),
+            'camera_stats': camera_stats,
             'stats': stats
         }
         

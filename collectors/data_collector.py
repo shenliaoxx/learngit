@@ -69,15 +69,20 @@ class DataCollector:
     def _collect_data_loop(self):
         """数据采集循环"""
         emg_interval = 1.0 / 200  # 目标EMG采样率：200Hz
-        hand_interval = 1.0 / 30   # 目标手部数据采样率：30Hz
+        hand_interval = 1.0 / 40   # 提高目标手部数据采样率至40Hz
         
         last_emg_time = 0
         last_hand_time = 0
         last_sample_count_log = 0
         sample_count_log_interval = 100  # 每增加100个样本记录一次日志
         
+        # 添加手部数据采样统计
+        hand_sample_times = []
+        max_sample_times = 100
+        
         while self.collection_running:
             current_time = time.perf_counter()
+            loop_start_time = current_time
 
             # 采集EMG数据
             if current_time - last_emg_time >= emg_interval:
@@ -107,10 +112,18 @@ class DataCollector:
                     
             # 采集手部数据
             if current_time - last_hand_time >= hand_interval:
+                hand_sample_start = time.perf_counter()
                 try:
                     hand_data = self.realsense_collector.get_hand_data()
                     if hand_data and self.is_recording:
                         self.add_hand_data(current_time, hand_data)
+                        
+                        # 记录采样时间
+                        hand_sample_time = time.perf_counter() - hand_sample_start
+                        hand_sample_times.append(hand_sample_time)
+                        if len(hand_sample_times) > max_sample_times:
+                            hand_sample_times.pop(0)
+                            
                     last_hand_time = current_time
                 except Exception as e:
                     print(f"手部数据采集错误: {e}")
@@ -119,16 +132,30 @@ class DataCollector:
             if self.is_recording and current_time - self.last_stats_print_time >= self.stats_print_interval:
                 self._print_stats()
 
-                            # 打印Myo采样统计信息
+                # 打印Myo采样统计信息
                 sampling_stats = self.myo_manager.get_sampling_stats()
                 print(f"Myo采样统计 - 采样率: {sampling_stats['rate']:.1f} Hz | "
                     f"平均间隔: {sampling_stats['mean_interval']*1000:.2f} ms | "
                     f"标准差: {sampling_stats['std_interval']*1000:.2f} ms")
                 
+                # 打印手部数据采样统计
+                if hand_sample_times:
+                    avg_sample_time = sum(hand_sample_times) / len(hand_sample_times)
+                    print(f"手部数据采样统计 - 平均采样时间: {avg_sample_time*1000:.2f} ms | "
+                          f"目标采样率: {1.0/hand_interval:.1f} Hz")
+                
                 self.last_stats_print_time = current_time
                 
-            # 短暂休眠，避免CPU占用过高
-            time.sleep(0.001)  # 1ms
+            # 计算循环耗时
+            loop_time = time.perf_counter() - loop_start_time
+            
+            # 动态调整休眠时间
+            sleep_time = max(0, min(emg_interval, hand_interval) / 2 - loop_time)
+            if sleep_time > 0:
+                time.sleep(sleep_time)
+            else:
+                # 如果处理时间已经超过了采样间隔的一半，只进行最小休眠
+                time.sleep(0.0001)  # 0.1ms
 
     def _print_stats(self):
         """打印当前统计信息"""
@@ -179,8 +206,12 @@ class DataCollector:
         with self.lock:
             if self.is_recording:
                 try:
-
                     if data and isinstance(data, dict):
+                        # 检查是否有重复时间戳
+                        if self.hand_buffer['timestamps'] and abs(timestamp - self.hand_buffer['timestamps'][-1]) < 0.001:
+                            # 时间戳太接近，跳过
+                            return
+                            
                         self.hand_buffer['timestamps'].append(timestamp)
 
                         angles_data = []
@@ -193,11 +224,8 @@ class DataCollector:
                             # PIP,DIP关节1个自由度，屈曲
                             angles_data.append(data.get(f"{finger}_pip_flexion", 0.0))
                             angles_data.append(data.get(f"{finger}_dip_flexion", 0.0))
-
                                                         
                         self.hand_buffer['joint_angles'].append(angles_data)
-
-
 
                         self.stats['hand_samples'] += 1
                         # 计算平均采样率（基于整个记录过程）

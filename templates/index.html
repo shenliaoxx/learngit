@@ -489,6 +489,14 @@
                             <span class="stat-label">总帧数:</span>
                             <span class="stat-value" id="camera-frames">0</span>
                         </span>
+                        <span class="stat-item">
+                            <span class="stat-label">处理时间:</span>
+                            <span class="stat-value" id="process-time">0 ms</span>
+                        </span>
+                        <span class="stat-item">
+                            <span class="stat-label">检测率:</span>
+                            <span class="stat-value" id="detection-rate">0%</span>
+                        </span>
                     </div>
                 </div>
                 <img id="camera-feed" src="" alt="Camera Feed">
@@ -918,8 +926,37 @@
                         }
 
                         // 更新相机信息
-                        document.getElementById('camera-fps').textContent = `相机帧率: ${data.camera_fps.toFixed(1)} FPS`;
-                        document.getElementById('camera-frames').textContent = `总帧数: ${data.camera_total_frames}`;
+                        document.getElementById('camera-fps').textContent = `${data.camera_fps.toFixed(1)} FPS`;
+                        document.getElementById('camera-frames').textContent = `${data.camera_total_frames}`;
+
+                        // 更新处理时间和检测率
+                        if (data.camera_stats && data.camera_stats.avg_process_time !== undefined) {
+                            document.getElementById('process-time').textContent = `${data.camera_stats.avg_process_time} ms`;
+
+                            // 根据处理时间设置颜色
+                            const processTimeElement = document.getElementById('process-time');
+                            if (data.camera_stats.avg_process_time > 40) {
+                                processTimeElement.className = 'stat-value danger';
+                            } else if (data.camera_stats.avg_process_time > 30) {
+                                processTimeElement.className = 'stat-value warning';
+                            } else {
+                                processTimeElement.className = 'stat-value';
+                            }
+                        }
+
+                        if (data.camera_stats && data.camera_stats.hand_detection_rate !== undefined) {
+                            document.getElementById('detection-rate').textContent = `${data.camera_stats.hand_detection_rate}%`;
+
+                            // 根据检测率设置颜色
+                            const detectionRateElement = document.getElementById('detection-rate');
+                            if (data.camera_stats.hand_detection_rate < 50) {
+                                detectionRateElement.className = 'stat-value danger';
+                            } else if (data.camera_stats.hand_detection_rate < 70) {
+                                detectionRateElement.className = 'stat-value warning';
+                            } else {
+                                detectionRateElement.className = 'stat-value';
+                            }
+                        }
 
                         if (this.isRecording) {
                             this.recordedData.push({
@@ -1147,8 +1184,29 @@
                     }
 
                     // 更新采样率
-                    document.getElementById('emg-rate').textContent = `EMG采样率: ${stats.emg_rate.toFixed(1)} Hz`;
-                    document.getElementById('hand-rate').textContent = `手部采样率: ${stats.hand_rate.toFixed(1)} Hz`;
+                    const emgRateElement = document.getElementById('emg-rate');
+                    emgRateElement.textContent = `EMG采样率: ${stats.emg_rate.toFixed(1)} Hz`;
+
+                    // 根据采样率设置颜色
+                    if (stats.emg_rate < 150) {
+                        emgRateElement.className = 'status warning';
+                    } else if (stats.emg_rate < 100) {
+                        emgRateElement.className = 'status error';
+                    } else {
+                        emgRateElement.className = 'status success';
+                    }
+
+                    const handRateElement = document.getElementById('hand-rate');
+                    handRateElement.textContent = `手部采样率: ${stats.hand_rate.toFixed(1)} Hz`;
+
+                    // 根据采样率设置颜色
+                    if (stats.hand_rate < 20) {
+                        handRateElement.className = 'status warning';
+                    } else if (stats.hand_rate < 15) {
+                        handRateElement.className = 'status error';
+                    } else {
+                        handRateElement.className = 'status success';
+                    }
 
                     // 更新记录时长
                     if (stats.is_recording) {
