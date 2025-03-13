@@ -142,7 +142,7 @@ def get_data():
             'timestamp': time.time(),
             'camera_fps': camera_stats.get('camera_fps', 0),
             'camera_total_frames': camera_stats.get('camera_total_frames', 0),
-            'camera_stats': camera_stats,
+            # 'camera_stats': camera_stats,
             'stats': stats
         }
         
