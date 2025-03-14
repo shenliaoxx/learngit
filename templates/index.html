@@ -121,10 +121,9 @@
             justify-content: center;
             background: #f8f9fa;
             border-radius: 8px;
-            padding: 10px;
             border: 1px solid #e9ecef;
             overflow: hidden;
-            height: 100%;
+            height: 80%;
             /* 确保高度填充父容器 */
         }
 
@@ -215,13 +214,13 @@
 
         .finger-section {
             background: #f8f9fa;
-            padding: 8px;
+            padding: 12px;
             border-radius: 8px;
             border: 1px solid #e9ecef;
             font-size: 12px;
             width: calc(50% - 4px);
             box-sizing: border-box;
-            margin-bottom: 6px;
+            margin-bottom: 10px;
         }
 
         /* 针对拇指的特殊处理，因为数据较少 */
@@ -807,14 +806,14 @@
                 topRow.style.width = '100%';
                 topRow.style.display = 'flex';
                 topRow.style.justifyContent = 'space-between';
-                topRow.style.marginBottom = '6px';
+                topRow.style.marginBottom = '8px';
 
                 // 创建中排容器（中指、无名指）
                 const middleRow = document.createElement('div');
                 middleRow.style.width = '100%';
                 middleRow.style.display = 'flex';
                 middleRow.style.justifyContent = 'space-between';
-                middleRow.style.marginBottom = '6px';
+                middleRow.style.marginBottom = '8px';
 
                 // 创建下排容器（小指）
                 const bottomRow = document.createElement('div');
