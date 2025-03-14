@@ -353,24 +353,9 @@ class MotionDemo {
             this.nextMotion();
         });
 
-        // 准备采集按钮事件
-        this.prepareCollectionBtn.addEventListener('click', () => {
-            this.prepareCollection();
-        });
-
         // 开始采集按钮事件
         this.startCollectionBtn.addEventListener('click', () => {
-            this.startCollection();
-        });
-
-        // 停止采集按钮事件
-        this.stopCollectionBtn.addEventListener('click', () => {
-            this.stopCollection();
-        });
-
-        // 完成采集按钮事件
-        this.finishCollectionBtn.addEventListener('click', () => {
-            this.finishCollection();
+            this.toggleCollection();
         });
 
         // 视频点击事件 - 播放/暂停
@@ -405,220 +390,79 @@ class MotionDemo {
         });
     }
 
-    async prepareCollection() {
-        if (!this.currentMotion) return;
-
-        try {
-            const response = await fetch('/api/collection/prepare', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify({
-                    motion_id: this.currentMotion.id
-                })
-            });
-
-            const data = await response.json();
-
-            if (data.status === 'success') {
-                this.collectionSession = data.session_id;
-                this.collectionConfig = data.collection_config;
-                this.collectionState = 'preparing';
-
-                // 更新UI状态
-                this.prepareCollectionBtn.disabled = true;
-                this.startCollectionBtn.disabled = false;
-                this.collectionProgress.classList.remove('hidden');
-                this.collectionOverlay.classList.remove('hidden');
-
-                // 显示准备倒计时
-                this.overlayStatus.textContent = '准备采集';
-                this.overlayMessage.textContent = '请准备好执行动作';
-                this.startPreparationCountdown(data.collection_config.preparation_time);
-
-                this.updateStatus('准备采集中...');
-            } else {
-                throw new Error(data.message);
-            }
-        } catch (error) {
-            console.error('准备采集失败:', error);
-            this.updateStatus('准备采集失败: ' + error.message, true);
-            this.resetCollectionState();
+    toggleCollection() {
+        if (this.isCollecting) {
+            this.stopCollection();
+        } else {
+            this.startCollection();
         }
     }
 
     async startCollection() {
-        if (!this.collectionSession) return;
+        if (!this.currentMotion) return;
 
         try {
-            const response = await fetch('/api/collection/start', {
+            this.updateStatus('开始采集数据...');
+
+            const response = await fetch('/api/record', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json'
                 },
                 body: JSON.stringify({
-                    session_id: this.collectionSession
+                    action: this.currentMotion.name
                 })
             });
 
             const data = await response.json();
 
             if (data.status === 'success') {
-                this.collectionState = 'collecting';
+                this.isCollecting = true;
+                this.startCollectionBtn.textContent = '停止采集';
+                this.startCollectionBtn.classList.add('collecting');
 
-                // 更新UI状态
-                this.startCollectionBtn.disabled = true;
-                this.stopCollectionBtn.disabled = false;
-                this.overlayStatus.textContent = '采集进行中';
-                this.overlayMessage.textContent = `第 ${data.repeat}/${data.total_repeats} 次采集`;
+                // 自动播放视频
+                if (!this.isPlaying) {
+                    this.playMotion();
+                }
 
-                // 开始采集倒计时
-                this.startCollectionCountdown(data.duration);
-
-                this.updateStatus(`开始第 ${data.repeat}/${data.total_repeats} 次采集`);
+                this.updateStatus('正在采集数据...');
             } else {
-                throw new Error(data.message);
+                console.error('开始采集失败:', data.message);
+                this.updateStatus('开始采集失败: ' + data.message, true);
             }
         } catch (error) {
-            console.error('开始采集失败:', error);
-            this.updateStatus('开始采集失败: ' + error.message, true);
-            this.resetCollectionState();
+            console.error('开始采集错误:', error);
+            this.updateStatus('开始采集错误: ' + error.message, true);
         }
     }
 
     async stopCollection() {
-        if (!this.collectionSession) return;
+        if (!this.isCollecting) return;
 
         try {
-            const response = await fetch('/api/collection/stop', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify({
-                    session_id: this.collectionSession
-                })
+            this.updateStatus('停止采集数据...');
+
+            const response = await fetch('/api/stop_record', {
+                method: 'POST'
             });
 
             const data = await response.json();
 
             if (data.status === 'success') {
-                // 更新采集进度
-                this.currentRepeat.textContent = data.repeat;
-                this.totalRepeats.textContent = data.total_repeats;
+                this.isCollecting = false;
+                this.startCollectionBtn.textContent = '开始采集';
+                this.startCollectionBtn.classList.remove('collecting');
 
-                // 添加数据文件到列表
-                const li = document.createElement('li');
-                li.textContent = data.filename;
-                this.dataFilesList.appendChild(li);
-
-                if (data.state === 'completed') {
-                    // 采集完成
-                    this.collectionState = 'completed';
-                    this.overlayStatus.textContent = '采集完成';
-                    this.overlayMessage.textContent = '所有采集已完成';
-                    this.stopCollectionBtn.disabled = true;
-                    this.finishCollectionBtn.disabled = false;
-                    this.updateStatus('采集完成');
-                } else {
-                    // 进入休息状态
-                    this.collectionState = 'resting';
-                    this.overlayStatus.textContent = '休息中';
-                    this.overlayMessage.textContent = `休息 ${data.rest_time} 秒`;
-                    this.stopCollectionBtn.disabled = true;
-                    this.startCollectionBtn.disabled = false;
-                    this.startRestCountdown(data.rest_time);
-                    this.updateStatus(`休息中: ${data.rest_time}秒`);
-                }
+                this.updateStatus(`采集完成，数据已保存至: ${data.filepath}`);
             } else {
-                throw new Error(data.message);
+                console.error('停止采集失败:', data.message);
+                this.updateStatus('停止采集失败: ' + data.message, true);
             }
         } catch (error) {
-            console.error('停止采集失败:', error);
-            this.updateStatus('停止采集失败: ' + error.message, true);
-            this.resetCollectionState();
+            console.error('停止采集错误:', error);
+            this.updateStatus('停止采集错误: ' + error.message, true);
         }
-    }
-
-    async finishCollection() {
-        if (!this.collectionSession) return;
-
-        try {
-            const response = await fetch('/api/collection/finish', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify({
-                    session_id: this.collectionSession
-                })
-            });
-
-            const data = await response.json();
-
-            if (data.status === 'success') {
-                // 重置采集状态
-                this.resetCollectionState();
-
-                // 隐藏采集相关UI
-                this.collectionOverlay.classList.add('hidden');
-                this.collectionProgress.classList.add('hidden');
-
-                // 更新按钮状态
-                this.prepareCollectionBtn.disabled = false;
-                this.startCollectionBtn.disabled = true;
-                this.stopCollectionBtn.disabled = true;
-                this.finishCollectionBtn.disabled = true;
-
-                this.updateStatus('采集会话已完成');
-            } else {
-                throw new Error(data.message);
-            }
-        } catch (error) {
-            console.error('完成采集失败:', error);
-            this.updateStatus('完成采集失败: ' + error.message, true);
-            this.resetCollectionState();
-        }
-    }
-
-    startPreparationCountdown(seconds) {
-        this.overlayTimer.textContent = seconds;
-        this.collectionTimer = setInterval(() => {
-            seconds--;
-            this.overlayTimer.textContent = seconds;
-
-            if (seconds <= 0) {
-                clearInterval(this.collectionTimer);
-                this.startCollection();
-            }
-        }, 1000);
-    }
-
-    startCollectionCountdown(seconds) {
-        this.overlayTimer.textContent = seconds;
-        this.collectionTimer = setInterval(() => {
-            seconds--;
-            this.overlayTimer.textContent = seconds;
-
-            if (seconds <= 0) {
-                clearInterval(this.collectionTimer);
-                this.stopCollection();
-            }
-        }, 1000);
-    }
-
-    startRestCountdown(seconds) {
-        this.overlayTimer.textContent = seconds;
-        this.collectionTimer = setInterval(() => {
-            seconds--;
-            this.overlayTimer.textContent = seconds;
-
-            if (seconds <= 0) {
-                clearInterval(this.collectionTimer);
-                this.startCollection();
-            }
-        }, 1000);
     }
 
     resetCollectionState() {
@@ -627,21 +471,6 @@ class MotionDemo {
         this.collectionState = 'idle';
         this.collectionTimer = null;
         this.collectionConfig = null;
-
-        // 清除定时器
-        if (this.collectionTimer) {
-            clearInterval(this.collectionTimer);
-            this.collectionTimer = null;
-        }
-
-        // 重置UI状态
-        this.prepareCollectionBtn.disabled = false;
-        this.startCollectionBtn.disabled = true;
-        this.stopCollectionBtn.disabled = true;
-        this.finishCollectionBtn.disabled = true;
-        this.collectionOverlay.classList.add('hidden');
-        this.collectionProgress.classList.add('hidden');
-        this.dataFilesList.innerHTML = '';
     }
 }
 

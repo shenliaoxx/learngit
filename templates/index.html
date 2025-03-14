@@ -402,14 +402,11 @@
 
         /* 系统控制区域 */
         .system-controls {
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            margin-bottom: 20px;
             background: white;
             border-radius: 8px;
             padding: 15px;
             box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+            margin-bottom: 20px;
         }
 
         .system-status {
@@ -417,25 +414,115 @@
             text-align: center;
         }
 
+        .control-content {
+            display: flex;
+            gap: 20px;
+            align-items: flex-start;
+        }
+
         .control-buttons {
             display: flex;
-            flex-wrap: wrap;
+            gap: 10px;
+            flex: 1;
+        }
+
+        .video-demo {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            min-width: 300px;
+            max-width: 400px;
+            background: #f8f9fa;
+            padding: 15px;
+            border-radius: 8px;
+        }
+
+        .video-header {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .video-header select {
+            flex: 1;
+            padding: 5px;
+            border-radius: 4px;
+            border: 1px solid #ddd;
+        }
+
+        .video-container {
+            background: #000;
+            border-radius: 4px;
+            overflow: hidden;
+            aspect-ratio: 16/9;
+        }
+
+        .video-container video {
+            width: 100%;
+            height: 100%;
+            object-fit: contain;
+        }
+
+        .motion-info {
+            background: white;
+            padding: 10px;
+            border-radius: 4px;
+            border: 1px solid #ddd;
+        }
+
+        .motion-info h3 {
+            margin: 0 0 5px 0;
+            color: #333;
+            font-size: 16px;
+        }
+
+        .motion-info p {
+            margin: 0 0 10px 0;
+            color: #666;
+            font-size: 14px;
+        }
+
+        .key-points {
+            margin-top: 10px;
+        }
+
+        .key-points h4 {
+            margin: 0 0 5px 0;
+            color: #333;
+            font-size: 14px;
+        }
+
+        .key-points ul {
+            margin: 0;
+            padding-left: 20px;
+            color: #666;
+            font-size: 13px;
+        }
+
+        .key-points li {
+            margin-bottom: 3px;
+        }
+
+        .video-controls {
+            display: flex;
             gap: 10px;
             justify-content: center;
         }
 
-        .status-panel {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            padding: 10px;
-            background-color: #f8f9fa;
-            border-radius: 8px;
-            margin-bottom: 10px;
+        .nav-button {
+            padding: 5px 10px;
+            font-size: 12px;
+            background: #007bff;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            transition: background 0.3s;
         }
 
-        .status-item {
-            margin-right: 10px;
+        .nav-button:hover {
+            background: #0056b3;
         }
 
         #emg-samples-display.warning {
@@ -471,10 +558,40 @@
             <div id="main-status" class="status">系统状态: 初始化中...</div>
             <div id="main-myo-status" class="status">Myo状态: 检查中...</div>
         </div>
-        <div class="control-buttons">
-            <button id="recordBtn" onclick="toggleRecording()">开始记录</button>
-            <button onclick="resetData()" class="reset-btn">重置数据</button>
-            <button onclick="resetMyoConnection()" class="reset-btn">重置Myo连接</button>
+        <div class="control-content">
+            <!-- 左侧：控制按钮 -->
+            <div class="control-buttons">
+                <button id="recordBtn" onclick="toggleRecording()">开始记录</button>
+                <button onclick="resetData()" class="reset-btn">重置数据</button>
+                <button onclick="resetMyoConnection()" class="reset-btn">重置Myo连接</button>
+            </div>
+            <!-- 右侧：视频演示 -->
+            <div class="video-demo">
+                <div class="video-header">
+                    <label for="sequenceSelect">动作序列：</label>
+                    <select id="sequenceSelect">
+                        <option value="">请选择动作序列</option>
+                    </select>
+                </div>
+                <div class="video-container">
+                    <video id="motionVideo" controls>
+                        <source src="" type="video/mp4">
+                        您的浏览器不支持视频播放。
+                    </video>
+                </div>
+                <div class="motion-info">
+                    <h3 id="motionName">动作名称</h3>
+                    <p id="motionDescription">动作描述</p>
+                    <div class="key-points">
+                        <h4>关键点：</h4>
+                        <ul id="keyPoints"></ul>
+                    </div>
+                </div>
+                <div class="video-controls">
+                    <button id="prevMotion" class="nav-button">上一个</button>
+                    <button id="nextMotion" class="nav-button">下一个</button>
+                </div>
+            </div>
         </div>
     </div>
 
@@ -1253,6 +1370,135 @@
         window.addEventListener('beforeunload', () => {
             collector.stop();
         });
+
+        // 动作演示模块的JavaScript代码
+        let currentSequence = null;
+        let currentMotionIndex = 0;
+
+        // 初始化动作演示模块
+        function initMotionDemo() {
+            // 获取动作序列列表
+            fetch('/get_sequences')
+                .then(response => response.json())
+                .then(data => {
+                    if (data.status === 'success') {
+                        const select = document.getElementById('sequenceSelect');
+                        select.innerHTML = '<option value="">请选择动作序列</option>';
+                        Object.entries(data.sequences).forEach(([id, info]) => {
+                            const option = document.createElement('option');
+                            option.value = id;
+                            option.textContent = info.name;
+                            select.appendChild(option);
+                        });
+                    } else {
+                        console.error('获取动作序列失败:', data.message);
+                    }
+                })
+                .catch(error => {
+                    console.error('获取动作序列请求失败:', error);
+                });
+
+            // 绑定事件监听器
+            document.getElementById('sequenceSelect').addEventListener('change', handleSequenceChange);
+            document.getElementById('prevMotion').addEventListener('click', showPrevMotion);
+            document.getElementById('nextMotion').addEventListener('click', showNextMotion);
+        }
+
+        // 处理动作序列选择
+        function handleSequenceChange(event) {
+            const sequenceId = event.target.value;
+            if (!sequenceId) {
+                resetDisplay();
+                return;
+            }
+
+            fetch(`/get_sequence/${sequenceId}`)
+                .then(response => response.json())
+                .then(data => {
+                    if (data.status === 'success') {
+                        currentSequence = data.sequence;
+                        currentMotionIndex = 0;
+                        showCurrentMotion();
+                    } else {
+                        console.error('获取动作序列详情失败:', data.message);
+                    }
+                })
+                .catch(error => {
+                    console.error('获取动作序列详情请求失败:', error);
+                });
+        }
+
+        // 显示当前动作
+        function showCurrentMotion() {
+            if (!currentSequence || currentMotionIndex >= currentSequence.motions.length) {
+                return;
+            }
+
+            const motionId = currentSequence.motions[currentMotionIndex];
+            fetch(`/get_motion/${motionId}`)
+                .then(response => response.json())
+                .then(data => {
+                    if (data.status === 'success') {
+                        const motion = data.motion;
+                        const video = document.getElementById('motionVideo');
+                        video.src = motion.video;
+
+                        // 更新动作信息
+                        document.getElementById('motionName').textContent = motion.name;
+                        document.getElementById('motionDescription').textContent = motion.description;
+
+                        // 更新关键点
+                        const keyPointsList = document.getElementById('keyPoints');
+                        keyPointsList.innerHTML = '';
+                        motion.key_points.forEach(point => {
+                            const li = document.createElement('li');
+                            li.textContent = point;
+                            keyPointsList.appendChild(li);
+                        });
+
+                        // 更新按钮状态
+                        document.getElementById('prevMotion').disabled = currentMotionIndex === 0;
+                        document.getElementById('nextMotion').disabled =
+                            currentMotionIndex === currentSequence.motions.length - 1;
+                    } else {
+                        console.error('获取动作详情失败:', data.message);
+                    }
+                })
+                .catch(error => {
+                    console.error('获取动作详情请求失败:', error);
+                });
+        }
+
+        // 显示上一个动作
+        function showPrevMotion() {
+            if (currentMotionIndex > 0) {
+                currentMotionIndex--;
+                showCurrentMotion();
+            }
+        }
+
+        // 显示下一个动作
+        function showNextMotion() {
+            if (currentMotionIndex < currentSequence.motions.length - 1) {
+                currentMotionIndex++;
+                showCurrentMotion();
+            }
+        }
+
+        // 重置显示
+        function resetDisplay() {
+            currentSequence = null;
+            currentMotionIndex = 0;
+            document.getElementById('motionVideo').src = '';
+            document.getElementById('motionName').textContent = '动作名称';
+            document.getElementById('motionDescription').textContent = '动作描述';
+            document.getElementById('keyPoints').innerHTML = '';
+            document.getElementById('prevMotion').disabled = true;
+            document.getElementById('nextMotion').disabled = true;
+        }
+
+        // 在页面加载完成后初始化动作演示模块
+        document.addEventListener('DOMContentLoaded', initMotionDemo);
     </script>
 </body>
 

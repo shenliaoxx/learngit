@@ -6,6 +6,7 @@ import time
 import base64
 import cv2
 from collectors.data_collector import DataCollector
+from motion_lib import MotionLibrary  # 添加导入
 
 
 app = Flask(__name__)
@@ -14,6 +15,7 @@ app = Flask(__name__)
 myo_manager = None
 realsense_collector = None
 data_collector = None
+motion_lib = MotionLibrary()  # 添加动作库实例
 
 def process_realsense():
     global realsense_collector
@@ -299,6 +301,75 @@ def initialize_system():
     
     print("系统初始化完成")
 
+@app.route('/get_sequences')
+def get_sequences():
+    """获取所有动作序列"""
+    try:
+        sequences = motion_lib.get_all_sequences()
+        return jsonify({
+            'status': 'success',
+            'sequences': sequences
+        })
+    except Exception as e:
+        print(f"获取动作序列错误: {e}")
+        return jsonify({
+            'status': 'error',
+            'message': str(e)
+        })
+
+@app.route('/get_sequence/<sequence_id>')
+def get_sequence(sequence_id):
+    """获取特定动作序列"""
+    try:
+        sequence = motion_lib.get_sequence(sequence_id)
+        return jsonify({
+            'status': 'success',
+            'sequence': sequence
+        })
+    except Exception as e:
+        print(f"获取动作序列错误: {e}")
+        return jsonify({
+            'status': 'error',
+            'message': str(e)
+        })
+
+@app.route('/get_motions')
+def get_motions():
+    """获取所有动作"""
+    try:
+        motions = motion_lib.motions
+        return jsonify({
+            'status': 'success',
+            'motions': motions
+        })
+    except Exception as e:
+        print(f"获取动作列表错误: {e}")
+        return jsonify({
+            'status': 'error',
+            'message': str(e)
+        })
+
+@app.route('/get_motion/<motion_id>')
+def get_motion(motion_id):
+    """获取特定动作"""
+    try:
+        motion = motion_lib.get_motion(motion_id)
+        if motion:
+            return jsonify({
+                'status': 'success',
+                'motion': motion
+            })
+        else:
+            return jsonify({
+                'status': 'error',
+                'message': f'未找到动作: {motion_id}'
+            })
+    except Exception as e:
+        print(f"获取动作错误: {e}")
+        return jsonify({
+            'status': 'error',
+            'message': str(e)
+        })
 
 if __name__ == '__main__':
     try:
