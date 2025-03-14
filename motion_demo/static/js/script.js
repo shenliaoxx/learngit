@@ -5,7 +5,6 @@ class MotionDemo {
         this.motionVideo = document.getElementById('motion-video');
         this.motionName = document.getElementById('motion-name');
         this.motionDescription = document.getElementById('motion-description');
-        this.timerValue = document.getElementById('timer-value');
         this.keyPointsList = document.getElementById('key-points-list');
         this.progressIndicator = document.getElementById('progress-indicator');
         this.sequenceSteps = document.getElementById('sequence-steps');
@@ -21,13 +20,17 @@ class MotionDemo {
         this.finishCollectionBtn = document.getElementById('finish-collection-btn');
         this.collectionOverlay = document.getElementById('collection-overlay');
         this.overlayStatus = document.getElementById('overlay-status');
-        this.overlayTimer = document.getElementById('overlay-timer');
         this.overlayMessage = document.getElementById('overlay-message');
         this.collectionProgress = document.getElementById('collection-progress');
         this.currentRepeat = document.getElementById('current-repeat');
         this.totalRepeats = document.getElementById('total-repeats');
-        this.collectionState = document.getElementById('collection-state');
-        this.dataFilesList = document.getElementById('data-files-list');
+        this.collectionStateElement = document.getElementById('collection-state');
+
+        // 全屏倒计时元素
+        this.fullscreenCountdown = document.getElementById('fullscreen-countdown');
+        this.countdownTitle = document.getElementById('countdown-title');
+        this.countdownTimer = document.getElementById('countdown-timer');
+        this.countdownMessage = document.getElementById('countdown-message');
 
         // 状态变量
         this.sequences = {};
@@ -173,7 +176,6 @@ class MotionDemo {
 
         // 更新倒计时
         this.remainingTime = motion.duration;
-        this.timerValue.textContent = this.remainingTime;
 
         // 更新按钮状态
         this.updateButtonStates();
@@ -268,7 +270,6 @@ class MotionDemo {
         }
 
         this.remainingTime = this.currentMotion ? this.currentMotion.duration : 0;
-        this.timerValue.textContent = this.remainingTime;
     }
 
     startTimer() {
@@ -276,7 +277,6 @@ class MotionDemo {
 
         this.timer = setInterval(() => {
             this.remainingTime--;
-            this.timerValue.textContent = this.remainingTime;
 
             if (this.remainingTime <= 0) {
                 this.stopTimer();
@@ -328,7 +328,6 @@ class MotionDemo {
                 this.motionName.textContent = '请选择动作';
                 this.motionDescription.textContent = '';
                 this.keyPointsList.innerHTML = '';
-                this.timerValue.textContent = '0';
                 this.motionVideo.src = '';
                 this.updateStatus('请选择动作序列');
             }
@@ -401,7 +400,30 @@ class MotionDemo {
                 case 'r':  // r键 - 重置当前视频
                     this.stopMotion();
                     break;
+                case 'Escape':  // ESC键 - 关闭全屏倒计时
+                    if (!this.fullscreenCountdown.classList.contains('hidden')) {
+                        // 只有在倒计时显示时才处理
+                        this.hideFullscreenCountdown();
+                        // 如果有计时器，也停止它
+                        if (this.collectionTimer) {
+                            clearInterval(this.collectionTimer);
+                            this.collectionTimer = null;
+                        }
+                        this.updateStatus('倒计时已手动取消');
+                    }
+                    break;
             }
+        });
+
+        // 点击全屏倒计时也可以关闭它
+        this.fullscreenCountdown.addEventListener('click', () => {
+            this.hideFullscreenCountdown();
+            // 如果有计时器，也停止它
+            if (this.collectionTimer) {
+                clearInterval(this.collectionTimer);
+                this.collectionTimer = null;
+            }
+            this.updateStatus('倒计时已手动取消');
         });
     }
 
@@ -435,6 +457,10 @@ class MotionDemo {
                 // 显示准备倒计时
                 this.overlayStatus.textContent = '准备采集';
                 this.overlayMessage.textContent = '请准备好执行动作';
+
+                // 更新采集状态显示
+                this.collectionStateElement.textContent = '准备中';
+
                 this.startPreparationCountdown(data.collection_config.preparation_time);
 
                 this.updateStatus('准备采集中...');
@@ -473,6 +499,9 @@ class MotionDemo {
                 this.overlayStatus.textContent = '采集进行中';
                 this.overlayMessage.textContent = `第 ${data.repeat}/${data.total_repeats} 次采集`;
 
+                // 更新采集状态显示
+                this.collectionStateElement.textContent = '采集中';
+
                 // 开始采集倒计时
                 this.startCollectionCountdown(data.duration);
 
@@ -508,11 +537,6 @@ class MotionDemo {
                 this.currentRepeat.textContent = data.repeat;
                 this.totalRepeats.textContent = data.total_repeats;
 
-                // 添加数据文件到列表
-                const li = document.createElement('li');
-                li.textContent = data.filename;
-                this.dataFilesList.appendChild(li);
-
                 if (data.state === 'completed') {
                     // 采集完成
                     this.collectionState = 'completed';
@@ -520,6 +544,10 @@ class MotionDemo {
                     this.overlayMessage.textContent = '所有采集已完成';
                     this.stopCollectionBtn.disabled = true;
                     this.finishCollectionBtn.disabled = false;
+
+                    // 更新采集状态显示
+                    this.collectionStateElement.textContent = '已完成';
+
                     this.updateStatus('采集完成');
                 } else {
                     // 进入休息状态
@@ -528,6 +556,10 @@ class MotionDemo {
                     this.overlayMessage.textContent = `休息 ${data.rest_time} 秒`;
                     this.stopCollectionBtn.disabled = true;
                     this.startCollectionBtn.disabled = false;
+
+                    // 更新采集状态显示
+                    this.collectionStateElement.textContent = '休息中';
+
                     this.startRestCountdown(data.rest_time);
                     this.updateStatus(`休息中: ${data.rest_time}秒`);
                 }
@@ -583,42 +615,73 @@ class MotionDemo {
     }
 
     startPreparationCountdown(seconds) {
-        this.overlayTimer.textContent = seconds;
+        // 显示全屏倒计时
+        this.showFullscreenCountdown('准备采集', seconds, '请准备好执行动作');
+
         this.collectionTimer = setInterval(() => {
             seconds--;
-            this.overlayTimer.textContent = seconds;
+
+            // 更新倒计时显示
+            this.countdownTimer.textContent = seconds;
 
             if (seconds <= 0) {
                 clearInterval(this.collectionTimer);
+                // 隐藏全屏倒计时
+                this.hideFullscreenCountdown();
                 this.startCollection();
             }
         }, 1000);
     }
 
     startCollectionCountdown(seconds) {
-        this.overlayTimer.textContent = seconds;
+        // 显示全屏倒计时
+        this.showFullscreenCountdown('采集进行中', seconds, '请保持动作姿势');
+
         this.collectionTimer = setInterval(() => {
             seconds--;
-            this.overlayTimer.textContent = seconds;
+
+            // 更新倒计时显示
+            this.countdownTimer.textContent = seconds;
 
             if (seconds <= 0) {
                 clearInterval(this.collectionTimer);
+                // 隐藏全屏倒计时
+                this.hideFullscreenCountdown();
                 this.stopCollection();
             }
         }, 1000);
     }
 
     startRestCountdown(seconds) {
-        this.overlayTimer.textContent = seconds;
+        // 显示全屏倒计时
+        this.showFullscreenCountdown('休息中', seconds, '请放松，准备下一次采集');
+
         this.collectionTimer = setInterval(() => {
             seconds--;
-            this.overlayTimer.textContent = seconds;
+
+            // 更新倒计时显示
+            this.countdownTimer.textContent = seconds;
 
             if (seconds <= 0) {
                 clearInterval(this.collectionTimer);
+                // 隐藏全屏倒计时
+                this.hideFullscreenCountdown();
                 this.startCollection();
             }
         }, 1000);
+    }
+
+    // 显示全屏倒计时
+    showFullscreenCountdown(title, seconds, message) {
+        this.countdownTitle.textContent = title;
+        this.countdownTimer.textContent = seconds;
+        this.countdownMessage.textContent = message;
+        this.fullscreenCountdown.classList.remove('hidden');
+    }
+
+    // 隐藏全屏倒计时
+    hideFullscreenCountdown() {
+        this.fullscreenCountdown.classList.add('hidden');
     }
 
     resetCollectionState() {
@@ -641,7 +704,14 @@ class MotionDemo {
         this.finishCollectionBtn.disabled = true;
         this.collectionOverlay.classList.add('hidden');
         this.collectionProgress.classList.add('hidden');
-        this.dataFilesList.innerHTML = '';
+
+        // 隐藏全屏倒计时
+        this.hideFullscreenCountdown();
+
+        // 重置采集状态显示
+        if (this.currentRepeat) this.currentRepeat.textContent = '0';
+        if (this.totalRepeats) this.totalRepeats.textContent = '5';
+        if (this.collectionStateElement) this.collectionStateElement.textContent = '准备中';
     }
 }
 

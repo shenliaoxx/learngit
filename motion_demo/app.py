@@ -147,8 +147,7 @@ def stop_collection():
         'state': session['state'],
         'repeat': session['current_repeat'],
         'total_repeats': session['repeat_times'],
-        'rest_time': session['rest_time'] if session['state'] == 'resting' else 0,
-        'filename': filename
+        'rest_time': session['rest_time'] if session['state'] == 'resting' else 0
     })
 
 @app.route('/api/collection/status', methods=['GET'])
@@ -170,8 +169,7 @@ def collection_status():
             'state': session['state'],
             'motion_name': session['motion_name'],
             'repeat': session['current_repeat'],
-            'total_repeats': session['repeat_times'],
-            'data_files': session['data_files']
+            'total_repeats': session['repeat_times']
         }
     })
 
@@ -192,8 +190,7 @@ def finish_collection():
     # 清理会话数据（实际应用中可能需要保存会话记录）
     result = {
         'motion_name': session['motion_name'],
-        'repeat_times': session['repeat_times'],
-        'data_files': session['data_files']
+        'repeat_times': session['repeat_times']
     }
     
     # 从活动会话中移除
