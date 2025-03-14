@@ -296,7 +296,6 @@ def initialize_system():
     # 初始化数据采集器
     data_collector = DataCollector(myo_manager, realsense_collector)
     data_collector.start_collection_thread()
-
     
     print("系统初始化完成")
 
