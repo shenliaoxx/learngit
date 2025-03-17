@@ -63,9 +63,8 @@ class MotionLibrary:
         
         # 预定义动作序列
         self.sequences = {
-            "basic_hand": ["pinch", "grasp", "flex", "extend"],
-            "fine_motor": ["pinch", "grasp"],
-            "wrist_motion": ["flex", "extend"]
+            "基础动作": ["pinch", "grasp", "flex", "extend"],
+            "技能动作": ["抓握水杯", "握鼠标"],
         }
     
     def get_motion(self, motion_id):

@@ -569,6 +569,67 @@
             font-weight: bold;
         }
 
+        /* 添加记录时长UI样式 */
+        .recording-duration-container {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 5px 12px;
+            background-color: var(--background-color);
+            border-radius: var(--border-radius);
+            border: 1px solid var(--border-color);
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+            transition: var(--transition);
+        }
+
+        .recording-duration-container.active {
+            background-color: rgba(40, 167, 69, 0.1);
+            border-color: var(--success-color);
+        }
+
+        .recording-timer {
+            font-family: 'Courier New', monospace;
+            font-weight: 600;
+            font-size: 16px;
+            color: var(--text-primary);
+            min-width: 80px;
+            text-align: center;
+        }
+
+        .recording-timer.active {
+            color: var(--success-color);
+        }
+
+        .recording-icon {
+            display: inline-block;
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            background-color: var(--danger-color);
+            margin-right: 5px;
+        }
+
+        .recording-icon.active {
+            animation: pulse 1.5s infinite;
+        }
+
+        @keyframes pulse {
+            0% {
+                transform: scale(0.95);
+                box-shadow: 0 0 0 0 rgba(220, 53, 69, 0.7);
+            }
+
+            70% {
+                transform: scale(1);
+                box-shadow: 0 0 0 5px rgba(220, 53, 69, 0);
+            }
+
+            100% {
+                transform: scale(0.95);
+                box-shadow: 0 0 0 0 rgba(220, 53, 69, 0);
+            }
+        }
+
         @media (max-width: 992px) {
             .upper-section {
                 height: auto;
@@ -736,10 +797,18 @@
             <i class="fas fa-circle"></i>
             <span id="recording-status" class="status">未记录</span>
         </div>
-        <div class="status-item">
-            <i class="fas fa-clock"></i>
+
+        <!-- 新的记录时长UI -->
+        <div class="recording-duration-container" id="duration-container">
+            <div class="recording-icon" id="recording-pulse-icon"></div>
+            <div class="recording-timer" id="recording-timer">00:00</div>
+            <i class="fas fa-stopwatch"></i>
+        </div>
+
+        <div class="status-item" style="display: none;">
             <span id="recording-duration">记录时长: 0秒</span>
         </div>
+        <!-- 其他状态项保持不变 -->
         <div class="status-item" style="display: none;">
             <span id="myo-status" class="status">Myo状态: 未连接</span>
         </div>
@@ -1331,13 +1400,28 @@
                         }
                     }
 
+                    const durationContainer = document.getElementById('duration-container');
+                    const recordingTimer = document.getElementById('recording-timer');
+                    const recordingIcon = document.getElementById('recording-pulse-icon');
+
                     if (stats.is_recording) {
                         const duration = Math.floor(stats.duration);
-                        const minutes = Math.floor(duration / 60);
-                        const seconds = duration % 60;
+                        const minutes = Math.floor(duration / 60).toString().padStart(2, '0');
+                        const seconds = (duration % 60).toString().padStart(2, '0');
+
+                        recordingTimer.textContent = `${minutes}:${seconds}`;
+                        recordingTimer.classList.add('active');
+                        recordingIcon.classList.add('active');
+                        durationContainer.classList.add('active');
+
                         document.getElementById('recording-duration').textContent =
                             `记录时长: ${minutes}分${seconds}秒`;
                     } else {
+                        recordingTimer.textContent = '00:00';
+                        recordingTimer.classList.remove('active');
+                        recordingIcon.classList.remove('active');
+                        durationContainer.classList.remove('active');
+
                         document.getElementById('recording-duration').textContent = '记录时长: 0秒';
                     }
                 }
