@@ -1,0 +1,13 @@
+---
+description: Best practices for working with HDF5 files using h5py
+globs: 
+alwaysApply: false
+---
+
+# Your rule content
+- Use context managers (`with` statements) for file operations
+- Implement proper error handling for file I/O
+- Utilize `h5py.File` for efficient data storage and retrieval
+- Leverage `h5py.Group` for organizing data within HDF5 files
+- You can @ files here
+- You can use markdown but dont have to

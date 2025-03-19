@@ -168,7 +168,45 @@ class HandAngleCalculator:
                     direction = np.sign(np.dot(cross_product, rotation_matrix[:, 2]))
                     
                     abduction = direction * angle
+                elif finger == 'pinky':
+                    # 获取关键点
+                    ring_mcp = points[13]    # 无名指MCP关节
+                    pinky_mcp = points[17]   # 小指MCP关节
+                    palm_center = points[0]   # 手掌中心
+                    
+                    # 使用无名指作为参考向量（这样更符合解剖学特点）
+                    ring_vector = ring_mcp - palm_center
+                    ring_vector = ring_vector / np.linalg.norm(ring_vector)
+                    
+                    # 计算小指向量
+                    pinky_vector = pinky_mcp - palm_center
+                    pinky_vector = pinky_vector / np.linalg.norm(pinky_vector)
+                    
+                    # 投影到手掌平面
+                    z_axis = rotation_matrix[:, 2]
+                    pinky_proj = pinky_vector - np.dot(pinky_vector, z_axis) * z_axis
+                    ring_proj = ring_vector - np.dot(ring_vector, z_axis) * z_axis
+                    
+                    # 归一化投影向量
+                    if np.linalg.norm(pinky_proj) > 0.001 and np.linalg.norm(ring_proj) > 0.001:
+                        pinky_proj = pinky_proj / np.linalg.norm(pinky_proj)
+                        ring_proj = ring_proj / np.linalg.norm(ring_proj)
+                        
+                        # 计算夹角
+                        dot_product = np.dot(pinky_proj, ring_proj)
+                        angle = np.degrees(np.arccos(np.clip(dot_product, -1.0, 1.0)))
+                        
+                        # 修改方向判定逻辑
+                        # 使用无名指到小指的方向作为参考
+                        # 如果小指在无名指的外侧（右手），角度应为负
+                        cross_product = np.cross(ring_proj, pinky_proj)
+                        direction = -np.sign(np.dot(cross_product, z_axis))  # 注意这里加了负号
+                        
+                        abduction = direction * angle
+                    else:
+                        abduction = 0  # 默认值
                 else:
+                    # 其他手指的外展角度计算保持不变
                     mcp_vector = points[chain[1]] - points[chain[0]]
                     abduction = self.calculate_abduction_angle(mcp_vector, rotation_matrix)
                 
@@ -201,8 +239,14 @@ class HandAngleCalculator:
                     # 其他手指角度
                     angles[f'{finger}_mcp_flexion'] = self.process_angle(
                         f'{finger}_mcp_flexion', flexion, 0, 90)
-                    angles[f'{finger}_mcp_abduction'] = self.process_angle(
-                        f'{finger}_mcp_abduction', abduction, -20, 20)
+                    
+                    # 小指使用特殊的外展角度范围
+                    if finger == 'pinky':
+                        angles[f'{finger}_mcp_abduction'] = self.process_angle(
+                            f'{finger}_mcp_abduction', abduction, -30, 30)
+                    else:
+                        angles[f'{finger}_mcp_abduction'] = self.process_angle(
+                            f'{finger}_mcp_abduction', abduction, -20, 20)
                     
                     # PIP屈曲
                     pip_flexion = self.calculate_flexion_angle(

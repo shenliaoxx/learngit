@@ -1,0 +1,14 @@
+---
+description: Best practices for NumPy array operations and performance
+globs: 
+alwaysApply: false
+---
+
+# Your rule content
+- Use vectorized operations instead of loops
+- Utilize NumPy's broadcasting feature
+- Choose appropriate data types to optimize memory usage
+- Use `np.where` for conditional operations on arrays
+
+- You can @ files here
+- You can use markdown but dont have to

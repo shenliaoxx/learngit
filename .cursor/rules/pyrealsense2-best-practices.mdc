@@ -1,0 +1,15 @@
+---
+description: Best practices for working with Intel RealSense cameras
+globs: 
+alwaysApply: false
+---
+
+# Your rule content
+
+- Use `pipeline.start()` and `pipeline.stop()` properly to manage resources
+- Implement depth alignment for accurate depth data
+- Utilize `rs.config` for flexible camera configuration
+- Handle exceptions for camera disconnections
+
+- You can @ files here
+- You can use markdown but dont have to

@@ -1,0 +1,14 @@
+---
+description: Best practices for computer vision tasks with OpenCV
+globs: 
+alwaysApply: false
+---
+
+# Your rule content
+- Optimize image processing with multi-threading
+- Use `cv2.imshow` for debugging and visualization
+- Leverage `cv2.VideoCapture` for efficient video processing
+- Implement proper error handling for camera operations
+
+- You can @ files here
+- You can use markdown but dont have to

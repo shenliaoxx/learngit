@@ -1,0 +1,14 @@
+---
+description: Best practices for machine learning solutions with MediaPipe
+globs: 
+alwaysApply: false
+---
+
+# Your rule content
+- Use `mp.solutions` for pre-built ML solutions
+- Optimize performance with GPU acceleration
+- Implement proper error handling for ML model execution
+- Leverage `mp.drawing_utils` for visualization of ML results
+
+- You can @ files here
+- You can use markdown but dont have to

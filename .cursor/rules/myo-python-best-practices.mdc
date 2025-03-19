@@ -1,0 +1,14 @@
+---
+description: Best practices for Myo armband integration
+globs: 
+alwaysApply: false
+---
+
+# Your rule content
+- Implement proper connection and disconnection handling
+- Use `myo.Myo` for efficient data streaming
+- Leverage `myo.emg_mode` for EMG data collection
+- Handle battery level monitoring and notifications
+
+- You can @ files here
+- You can use markdown but dont have to

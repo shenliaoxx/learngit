@@ -1,0 +1,14 @@
+---
+description: Best practices for scientific computing with SciPy
+globs: 
+alwaysApply: false
+---
+
+# Your rule content
+- Use `scipy.optimize` for optimization tasks
+- Leverage `scipy.signal` for signal processing
+- Utilize `scipy.stats` for statistical analysis
+- Implement proper error handling for numerical computations
+
+- You can @ files here
+- You can use markdown but dont have to

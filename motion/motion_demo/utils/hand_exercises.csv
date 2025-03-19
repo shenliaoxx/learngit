@@ -1,0 +1,55 @@
+﻿编号,分类,动作名称,描述,,,,,,,,,,,,
+1,Exercise A,Index flexion,食指弯曲,,,,,,,,,1,Exercise B,Thumb up,拇指向上
+2,Exercise A,Index extension,食指伸展,,,,,,,,,2,Exercise B,Extension of index and middle flexion of others,食指和中指伸展，其他手指弯曲
+3,Exercise A,Middle flexion,中指弯曲,,,,,,,,,3,Exercise B,Little finger extension of the others,小指伸展，其他手指自然
+4,Exercise A,Middle extension,中指伸展,,,,,,,,,4,Exercise B,Opposing base of little finger,拇指与小指基部对合
+5,Exercise A,Ring flexion,无名指弯曲,,,,,,,,,5,Exercise B,Abduction of all fingers,所有手指外展
+6,Exercise A,Ring extension,无名指伸展,,,,,,,,,6,Exercise B,Fingers flexed together in fist,所有手指握拳
+7,Exercise A,Little finger flexion,小指弯曲,,,,,,,,,7,Exercise B,Pointing,指向（食指伸直）
+8,Exercise A,Little finger extension,小指伸展,,,,,,,,,8,Exercise B,Adduction of extended fingers,伸展手指内收
+9,Exercise A,Thumb adduction,拇指内收,,,,,,,,,9,Exercise B,Wrist supination (axis: middle finger),腕部旋前（中指轴心）
+10,Exercise A,Thumb abduction,拇指外展,,,,,,,,,10,Exercise B,Wrist pronation (axis: middle finger),腕部旋后（中指轴心）
+11,Exercise A,Thumb flexion,拇指弯曲,,,,,,,,,11,Exercise B,Supination (axis: little finger),旋前（小指轴心）
+12,Exercise A,Thumb extension,拇指伸展,,,,,,,,,12,Exercise B,Pronation (axis: little finger),旋后（小指轴心）
+13,Exercise A,Wrist flexion,腕部屈曲,,,,,,,,,13,Exercise B,Wrist flexion,腕部屈曲
+14,Exercise A,Wrist extension,腕部伸展,,,,,,,,,14,Exercise B,Wrist extension,腕部伸展
+15,Exercise A,Wrist radial deviation,腕部桡侧偏斜,,,,,,,,,,,,
+16,Exercise A,Wrist ulnar deviation,腕部尺侧偏斜,,,,,,,,,,,,
+17,Exercise A,Wrist extension with closed hand,腕部伸展，手握拳,,,,,,,,,,,,
+,,,,,,,,,,,,,,,
+,,,,,,,,,,,,,,,
+,,,,,,,,,,,,,,,
+,,,,,,,,,,,,,,,
+,,,,,,,,,,,,,,,
+,,,,,,,,,,,,,,,
+,,,,,,,,,,,,,,,
+,,,,,,,,,,,,,,,
+,,,,,,,,,,,,,,,
+,,,,,,,,,,,,,,,
+,,,,,,,,,,,,,,,
+,,,,,,,,,,,,,,,
+,,,,,,,,,,,,,,,
+,,,,,,,,,,,,,,,
+1,Exercise C,Large grasp,大范围抓握,,,,,,,,,1,Exercise D,Quadpod grasp the little finger,四指抓握（小指为主）
+2,Exercise C,Small diameter grasp power grip,小直径抓握（力量握）,,,,,,,,,2,Exercise D,Flexion of the ring finger,无名指弯曲
+3,Exercise C,Fixed hook grasp,固定钩状抓握,,,,,,,,,3,Exercise D,Flexion of the middle finger,中指弯曲
+4,Exercise C,Index finger extension grasp,食指伸展抓握,,,,,,,,,4,Exercise D,Flexion of the index finger,食指弯曲
+5,Exercise C,Medium wrap,中等包裹抓握,,,,,,,,,5,Exercise D,Abduction of the thumb,拇指外展
+6,Exercise C,Ring grasp,环形抓握,,,,,,,,,6,Exercise D,Flexion of the thumb,拇指弯曲
+7,Exercise C,Prismatic four fingers grasp,四指棱柱抓握,,,,,,,,,7,Exercise D,Flexion of index and little finger,食指和小指弯曲
+8,Exercise C,Stick grasp,棒状抓握,,,,,,,,,8,Exercise D,Flexion of middle finger,中指弯曲
+9,Exercise C,Writing grasp,书写抓握,,,,,,,,,9,Exercise D,Flexion of index and thumb,食指和拇指弯曲
+10,Exercise C,Tripod grasp,三点支撑抓握,,,,,,,,,-,Rest,Rest,休息状态，手自然放松
+11,Exercise C,Power sphere grasp,力量球形抓握,,,,,,,,,,,,
+12,Exercise C,Three finger grasp,三指抓握,,,,,,,,,,,,
+13,Exercise C,Precision sphere grasp,精确球形抓握,,,,,,,,,,,,
+14,Exercise C,Pincer grasp,钳形抓握,,,,,,,,,,,,
+15,Exercise C,Tip pinch grasp,指尖捏握,,,,,,,,,,,,
+16,Exercise C,Quadpod grasp,四指抓握,,,,,,,,,,,,
+17,Exercise C,Lateral grasp,侧向抓握,,,,,,,,,,,,
+18,Exercise C,Parallel extension grasp,平行伸展抓握,,,,,,,,,,,,
+19,Exercise C,Type grasp,类型抓握,,,,,,,,,,,,
+20,Exercise C,Power disk grasp,力量圆盘抓握,,,,,,,,,,,,
+21,Exercise C,Open a bottle with a triple grasp,三指抓握打开瓶子,,,,,,,,,,,,
+22,Exercise C,Turn a screwdriver with a stick grasp,棒状抓握转动螺丝刀,,,,,,,,,,,,
+23,Exercise C,Cut (grasp the knife with an index finger extension grasp),用食指伸展抓握刀具切割,,,,,,,,,,,,

@@ -1,0 +1,14 @@
+---
+description:  Best practices for Flask web applications
+globs: 
+alwaysApply: false
+---
+
+# Your rule content
+- Use Blueprints for modular routing
+- Implement proper error handling with custom error handlers
+- Use environment variables for configuration
+- Leverage Flask-SQLAlchemy for database management
+
+- You can @ files here
+- You can use markdown but dont have to

@@ -288,12 +288,12 @@ class DataCollector:
             return filepath
 
 
-    def save_recording(self):
+    def save_recording(self,hand_info='right', recording_number=4,repeat_times=6):
         """保存记录数据"""
         try:
             # 简化的文件名，只使用时间戳
             timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
-            filename = f"recording_{timestamp}.h5"
+            filename = f"{timestamp}_{recording_number}_{hand_info}_{repeat_times}.h5"
             
             # 简化的保存路径，直接保存在 data 目录下
             if not os.path.exists('data'):
@@ -332,11 +332,14 @@ class DataCollector:
                 hand_group = f.create_group('hand')
                 hand_group.create_dataset('timestamps', data=self.hand_buffer['timestamps'])
                 hand_group.create_dataset('joint_angles', data=self.hand_buffer['joint_angles'])
+                
 
                 # 保存基本的统计信息
                 stats = f.create_group('stats')
                 stats.attrs['emg_samples'] = len(self.emg_buffer['timestamps'])
                 stats.attrs['hand_samples'] = len(self.hand_buffer['timestamps'])
+                stats.attrs['repeat_times'] = repeat_times  # 添加重复次数信息
+
                 
             print(f"数据保存成功: {filepath}")
             return filepath
