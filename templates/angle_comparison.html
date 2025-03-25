@@ -1,45 +1,477 @@
-<!-- templates/angle_comparison.html -->
 <!DOCTYPE html>
 <html>
 <head>
-    <title>角度滤波效果比较</title>
+    <title>手指关节角度滤波分析</title>
     <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@300;400;500;700&display=swap" rel="stylesheet">
     <style>
-        .chart-container {
-            display: grid;
-            grid-template-columns: repeat(2, 1fr);
-            gap: 20px;
+        :root {
+            --primary-color: #4361ee;
+            --secondary-color: #3f37c9;
+            --accent-color: #4895ef;
+            --light-color: #f8f9ff;
+            --dark-color: #2b2d42;
+            --success-color: #4cc9f0;
+            --warning-color: #f8961e;
+            --danger-color: #f72585;
+            --static-color: #90e0ef;
+            --slow-color: #ffd166;
+            --fast-color: #06d6a0;
+            --raw-data-color: #ef476f;
+            --filtered-data-color: #118ab2;
+        }
+
+        body {
+            font-family: 'Noto Sans SC', sans-serif;
+            margin: 0;
             padding: 20px;
+            background-color: #f5f7fa;
+            color: var(--dark-color);
+            line-height: 1.6;
         }
-        .chart {
-            height: 300px;
-            border: 1px solid #ddd;
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+            padding: 15px 20px;
+            background-color: white;
+            border-radius: 12px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.05);
+            border-left: 5px solid var(--primary-color);
+        }
+
+        .header h1 {
+            margin: 0;
+            font-size: 22px;
+            font-weight: 700;
+            color: var(--primary-color);
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .header h1::before {
+            content: "📊";
+            font-size: 24px;
+        }
+
+        .controls {
+            display: flex;
+            align-items: center;
+            gap: 20px;
+        }
+
+        .control-group {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            background: var(--light-color);
+            padding: 8px 12px;
             border-radius: 8px;
-            padding: 10px;
         }
-        .motion-state {
-            text-align: center;
-            padding: 5px;
-            margin: 5px;
+
+        .control-group label {
+            font-weight: 500;
+            font-size: 14px;
+            color: var(--dark-color);
+        }
+
+        .control-group select, .control-group button {
+            padding: 6px 12px;
+            border-radius: 6px;
+            border: 1px solid #e0e3ff;
+            background-color: white;
+            font-family: 'Noto Sans SC', sans-serif;
+            font-size: 14px;
+            transition: all 0.2s ease;
+        }
+
+        .control-group select:focus, .control-group button:focus {
+            outline: none;
+            border-color: var(--accent-color);
+            box-shadow: 0 0 0 2px rgba(67, 97, 238, 0.2);
+        }
+
+        .home-button {
+            padding: 8px 16px;
+            background-color: var(--primary-color);
+            color: white;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 500;
+            text-decoration: none;
+            transition: all 0.2s ease;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .home-button:hover {
+            background-color: var(--secondary-color);
+            transform: translateY(-1px);
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+
+        .home-button::before {
+            content: "←";
+        }
+
+        .status-panel {
+            margin-bottom: 20px;
+            padding: 15px;
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.05);
+        }
+
+        .status-panel-title {
+            font-weight: 600;
+            margin-bottom: 12px;
+            font-size: 15px;
+            color: var(--primary-color);
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .status-panel-title::before {
+            content: "🔍";
+        }
+
+        .motion-states {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+        }
+
+        .finger-group {
+            background: var(--light-color);
+            padding: 8px 12px;
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .finger-label {
+            font-weight: 600;
+            font-size: 13px;
+            color: var(--secondary-color);
+            min-width: 40px;
+        }
+
+        .joint-states {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 6px;
+        }
+
+        .joint-state {
+            padding: 4px 8px;
             border-radius: 4px;
+            font-size: 12px;
+            font-weight: 500;
+            white-space: nowrap;
+            display: flex;
+            align-items: center;
+            gap: 4px;
         }
-        .static { background-color: #90EE90; }
-        .slow { background-color: #FFB6C1; }
-        .fast { background-color: #87CEEB; }
+
+        .joint-state::before {
+            font-size: 10px;
+        }
+
+        .static { 
+            background-color: var(--static-color);
+            color: var(--dark-color);
+        }
+        .static::before {
+            content: "●";
+        }
+        
+        .slow { 
+            background-color: var(--slow-color);
+            color: var(--dark-color);
+        }
+        .slow::before {
+            content: "↗";
+        }
+        
+        .fast { 
+            background-color: var(--fast-color);
+            color: var(--dark-color);
+        }
+        .fast::before {
+            content: "↘";
+        }
+
+        .fingers-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(600px, 1fr));
+            gap: 20px;
+        }
+
+        .finger-section {
+            background: white;
+            padding: 15px;
+            border-radius: 12px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.05);
+            transition: transform 0.2s ease, box-shadow 0.2s ease;
+        }
+
+        .finger-section:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 12px rgba(0,0,0,0.1);
+        }
+
+        .finger-title {
+            font-size: 17px;
+            font-weight: 700;
+            margin-bottom: 12px;
+            color: var(--primary-color);
+            padding-bottom: 8px;
+            border-bottom: 1px solid #f0f2ff;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .thumb .finger-title::before { content: "👍"; }
+        .index .finger-title::before { content: "👆"; }
+        .middle .finger-title::before { content: "🖕"; }
+        .ring .finger-title::before { content: "💍"; }
+        .pinky .finger-title::before { content: "🤙"; }
+
+        .charts-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 15px;
+        }
+
+        .chart-container {
+            height: 200px;
+            border-radius: 8px;
+            background-color: white;
+            padding: 10px;
+            border: 1px solid #f0f2ff;
+        }
+
+        .chart-legend {
+            display: flex;
+            justify-content: center;
+            gap: 15px;
+            margin-top: 10px;
+            font-size: 12px;
+        }
+
+        .legend-item {
+            display: flex;
+            align-items: center;
+            gap: 4px;
+        }
+
+        .legend-color {
+            width: 12px;
+            height: 12px;
+            border-radius: 2px;
+        }
+
+        .raw-legend { background-color: var(--raw-data-color); }
+        .filtered-legend { background-color: var(--filtered-data-color); }
+
+        /* 响应式设计 */
+        @media (max-width: 1200px) {
+            .fingers-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+        
+        @media (max-width: 768px) {
+            .header {
+                flex-direction: column;
+                align-items: stretch;
+                gap: 15px;
+            }
+            
+            .controls {
+                flex-direction: column;
+                align-items: stretch;
+                gap: 10px;
+            }
+            
+            .control-group {
+                justify-content: space-between;
+            }
+            
+            .charts-grid {
+                grid-template-columns: 1fr;
+            }
+            
+            .finger-group {
+                flex-direction: column;
+                align-items: flex-start;
+            }
+            
+            .joint-states {
+                width: 100%;
+            }
+        }
+
+        /* 动画效果 */
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(5px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .finger-section {
+            animation: fadeIn 0.3s ease forwards;
+        }
+
+        .finger-section:nth-child(1) { animation-delay: 0.1s; }
+        .finger-section:nth-child(2) { animation-delay: 0.2s; }
+        .finger-section:nth-child(3) { animation-delay: 0.3s; }
+        .finger-section:nth-child(4) { animation-delay: 0.4s; }
+        .finger-section:nth-child(5) { animation-delay: 0.5s; }
     </style>
 </head>
 <body>
-    <div id="motion-states"></div>
-    <div class="chart-container" id="charts"></div>
-    
+    <div class="container">
+        <div class="header">
+            <h1>手指关节角度滤波分析系统</h1>
+            <div class="controls">
+                <div class="control-group">
+                    <label for="updateInterval">更新频率:</label>
+                    <select id="updateInterval" onchange="changeUpdateInterval()">
+                        <option value="100">快速 (100ms)</option>
+                        <option value="200" selected>正常 (200ms)</option>
+                        <option value="500">慢速 (500ms)</option>
+                        <option value="1000">超慢 (1s)</option>
+                    </select>
+                </div>
+                <a href="/" class="home-button">返回主页</a>
+            </div>
+        </div>
+
+        <div class="status-panel">
+            <div class="status-panel-title">实时运动状态监测</div>
+            <div class="motion-states" id="motion-states"></div>
+        </div>
+
+        <div class="fingers-grid" id="fingers-container"></div>
+    </div>
+
     <script>
-        const angleTypes = [
-            'thumb_cmc_flexion', 'thumb_mcp_flexion', 'thumb_ip_flexion',
-            'index_mcp_flexion', 'index_pip_flexion', 'index_dip_flexion',
-            'middle_mcp_flexion', 'middle_pip_flexion', 'middle_dip_flexion',
-            'ring_mcp_flexion', 'ring_pip_flexion', 'ring_dip_flexion',
-            'pinky_mcp_flexion', 'pinky_pip_flexion', 'pinky_dip_flexion'
-        ];
+        const fingers = {
+            'thumb': {
+                name: '拇指',
+                angles: ['cmc_flexion', 'mcp_flexion', 'ip_flexion', 'mcp_abduction'],
+                class: 'thumb'
+            },
+            'index': {
+                name: '食指',
+                angles: ['mcp_flexion', 'pip_flexion', 'dip_flexion', 'mcp_abduction'],
+                class: 'index'
+            },
+            'middle': {
+                name: '中指',
+                angles: ['mcp_flexion', 'pip_flexion', 'dip_flexion', 'mcp_abduction'],
+                class: 'middle'
+            },
+            'ring': {
+                name: '无名指',
+                angles: ['mcp_flexion', 'pip_flexion', 'dip_flexion', 'mcp_abduction'],
+                class: 'ring'
+            },
+            'pinky': {
+                name: '小指',
+                angles: ['mcp_flexion', 'pip_flexion', 'dip_flexion', 'mcp_abduction'],
+                class: 'pinky'
+            }
+        };
+
+        const angleNames = {
+            'cmc_flexion': 'CMC屈曲',
+            'mcp_flexion': 'MCP屈曲',
+            'pip_flexion': 'PIP屈曲',
+            'dip_flexion': 'DIP屈曲',
+            'ip_flexion': 'IP屈曲',
+            'mcp_abduction': 'MCP外展'
+        };
+
+        // 初始化图表容器
+        const container = document.getElementById('fingers-container');
+        for (const [finger, info] of Object.entries(fingers)) {
+            const section = document.createElement('div');
+            section.className = `finger-section ${info.class}`;
+            
+            const title = document.createElement('div');
+            title.className = 'finger-title';
+            title.textContent = info.name;
+            section.appendChild(title);
+            
+            const chartsGrid = document.createElement('div');
+            chartsGrid.className = 'charts-grid';
+            
+            info.angles.forEach(angle => {
+                const chartContainer = document.createElement('div');
+                chartContainer.className = 'chart-container';
+                
+                const chartDiv = document.createElement('div');
+                chartDiv.id = `chart-${finger}-${angle}`;
+                chartDiv.style.height = '180px';
+                chartContainer.appendChild(chartDiv);
+                
+                // 添加图例
+                const legend = document.createElement('div');
+                legend.className = 'chart-legend';
+                legend.innerHTML = `
+                    <div class="legend-item">
+                        <div class="legend-color raw-legend"></div>
+                        <span>原始数据</span>
+                    </div>
+                    <div class="legend-item">
+                        <div class="legend-color filtered-legend"></div>
+                        <span>滤波后</span>
+                    </div>
+                `;
+                chartContainer.appendChild(legend);
+                
+                chartsGrid.appendChild(chartContainer);
+            });
+            
+            section.appendChild(chartsGrid);
+            container.appendChild(section);
+        }
+
+        let updateInterval = 200;
+        let updateTimer = null;
+        let lastUpdateTime = 0;
+
+        function changeUpdateInterval() {
+            const select = document.getElementById('updateInterval');
+            updateInterval = parseInt(select.value);
+            if (updateTimer) {
+                clearInterval(updateTimer);
+                updateTimer = setInterval(checkAndUpdateCharts, updateInterval);
+            }
+        }
+
+        function checkAndUpdateCharts() {
+            const now = Date.now();
+            if (now - lastUpdateTime >= updateInterval) {
+                lastUpdateTime = now;
+                updateCharts();
+            }
+        }
 
         function updateCharts() {
             fetch('/get_angle_comparison')
@@ -47,58 +479,128 @@
                 .then(data => {
                     if (data.status === 'success') {
                         // 更新运动状态显示
-                        const motionStatesDiv = document.getElementById('motion-states');
-                        motionStatesDiv.innerHTML = '';
-                        Object.entries(data.motion_states).forEach(([angle, state]) => {
-                            const stateDiv = document.createElement('div');
-                            stateDiv.className = `motion-state ${state}`;
-                            stateDiv.textContent = `${angle}: ${state}`;
-                            motionStatesDiv.appendChild(stateDiv);
-                        });
+                        updateMotionStates(data.motion_states);
 
                         // 更新图表
-                        angleTypes.forEach(angleType => {
-                            const rawData = data.raw_angles[angleType] || [];
-                            const filteredData = data.filtered_angles[angleType] || [];
+                        for (const [finger, info] of Object.entries(fingers)) {
+                            info.angles.forEach(angle => {
+                                const angleKey = `${finger}_${angle}`;
+                                const rawData = data.raw_angles[angleKey] || [];
+                                const filteredData = data.filtered_angles[angleKey] || [];
 
-                            const trace1 = {
-                                y: rawData,
-                                name: '原始数据',
-                                type: 'scatter',
-                                line: { color: '#FF6B6B' }
-                            };
+                                if (rawData.length > 0 || filteredData.length > 0) {
+                                    const trace1 = {
+                                        y: rawData,
+                                        name: '原始数据',
+                                        type: 'scatter',
+                                        line: { color: 'var(--raw-data-color)', width: 1.5 }
+                                    };
 
-                            const trace2 = {
-                                y: filteredData,
-                                name: '滤波后数据',
-                                type: 'scatter',
-                                line: { color: '#4ECDC4' }
-                            };
+                                    const trace2 = {
+                                        y: filteredData,
+                                        name: '滤波后',
+                                        type: 'scatter',
+                                        line: { color: 'var(--filtered-data-color)', width: 2.5 }
+                                    };
 
-                            const layout = {
-                                title: angleType,
-                                height: 300,
-                                margin: { t: 30, b: 30, l: 30, r: 30 },
-                                showlegend: true
-                            };
+                                    const layout = {
+                                        title: {
+                                            text: angleNames[angle],
+                                            font: { size: 14, family: 'Noto Sans SC' }
+                                        },
+                                        height: 180,
+                                        margin: { t: 30, b: 20, l: 40, r: 20 },
+                                        showlegend: false,
+                                        font: { family: 'Noto Sans SC' },
+                                        xaxis: { 
+                                            showgrid: true, 
+                                            gridcolor: '#f0f2ff',
+                                            zeroline: false 
+                                        },
+                                        yaxis: { 
+                                            title: { text: '角度(°)', standoff: 10 },
+                                            gridcolor: '#f0f2ff'
+                                        },
+                                        paper_bgcolor: 'rgba(0,0,0,0)',
+                                        plot_bgcolor: 'rgba(0,0,0,0)',
+                                        hovermode: 'x unified'
+                                    };
 
-                            Plotly.newPlot(`chart-${angleType}`, [trace1, trace2], layout);
-                        });
+                                    Plotly.react(
+                                        `chart-${finger}-${angle}`, 
+                                        [trace1, trace2], 
+                                        layout,
+                                        {displayModeBar: false, responsive: true}
+                                    );
+                                }
+                            });
+                        }
                     }
-                });
+                })
+                .catch(error => console.error('获取数据错误:', error));
         }
 
-        // 初始化图表容器
-        const chartsContainer = document.getElementById('charts');
-        angleTypes.forEach(angleType => {
-            const chartDiv = document.createElement('div');
-            chartDiv.id = `chart-${angleType}`;
-            chartDiv.className = 'chart';
-            chartsContainer.appendChild(chartDiv);
-        });
+        function updateMotionStates(motionStates) {
+            const container = document.getElementById('motion-states');
+            container.innerHTML = '';
+            
+            // 按手指分组显示运动状态
+            const fingerGroups = {};
+            
+            Object.entries(motionStates).forEach(([angle, state]) => {
+                const fingerName = angle.split('_')[0];
+                if (!fingerGroups[fingerName]) {
+                    fingerGroups[fingerName] = [];
+                }
+                
+                const jointName = angleNames[angle.split('_').slice(1).join('_')] || angle.replace(`${fingerName}_`, '');
+                
+                fingerGroups[fingerName].push({
+                    joint: jointName,
+                    state: state
+                });
+            });
+            
+            // 为每个手指创建运动状态显示
+            Object.entries(fingerGroups).forEach(([finger, joints]) => {
+                const fingerGroupDiv = document.createElement('div');
+                fingerGroupDiv.className = 'finger-group';
+                
+                // 手指标签
+                const fingerLabel = document.createElement('div');
+                fingerLabel.className = 'finger-label';
+                fingerLabel.textContent = fingers[finger]?.name || finger;
+                
+                // 关节状态容器
+                const jointStatesDiv = document.createElement('div');
+                jointStatesDiv.className = 'joint-states';
+                
+                // 添加各关节状态
+                joints.forEach(joint => {
+                    const jointStateDiv = document.createElement('div');
+                    jointStateDiv.className = `joint-state ${joint.state}`;
+                    jointStateDiv.textContent = joint.joint;
+                    jointStatesDiv.appendChild(jointStateDiv);
+                });
+                
+                fingerGroupDiv.appendChild(fingerLabel);
+                fingerGroupDiv.appendChild(jointStatesDiv);
+                container.appendChild(fingerGroupDiv);
+            });
+        }
 
-        // 定期更新图表
-        setInterval(updateCharts, 100);
+        function startUpdateLoop() {
+            updateCharts();
+            updateTimer = setInterval(checkAndUpdateCharts, updateInterval);
+        }
+
+        document.addEventListener('DOMContentLoaded', startUpdateLoop);
+
+        window.addEventListener('beforeunload', () => {
+            if (updateTimer) {
+                clearInterval(updateTimer);
+            }
+        });
     </script>
 </body>
 </html>

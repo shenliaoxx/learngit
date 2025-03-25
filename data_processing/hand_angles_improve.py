@@ -5,18 +5,32 @@ import logging
 
 class HandAngleCalculator:
     def __init__(self):
-
+        # 初始化数据存储属性
+        self.raw_angles = {}        # 存储原始角度数据
+        self.filtered_angles = {}   # 存储滤波后的角度数据
+        self.angle_history = {}     # 存储历史角度数据
+        self.kalman_filters = {}    # 存储卡尔曼滤波器状态
+        
+        # 动态历史长度配置
+        self.history_config = {
+            'static': 8,    # 静止状态使用较长的历史数据
+            'slow': 5,      # 低速运动使用中等长度
+            'fast': 3       # 高速运动使用较短的历史数据
+        }
+        
+        self.motion_state = 'slow'  # 默认为低速状态
+        self.history_length = self.history_config['slow']
 
         # 定义手指关节链
         self.finger_chains = {
-            'thumb': [0, 1, 2, 3, 4],      # 拇指: MCP(2DOF), PIP(1DOF), DIP(1DOF)
+            'thumb': [0, 1, 2, 3, 4],      # 拇指: CMC(2DOF), MCP(2DOF), IP(1DOF)
             'index': [0, 5, 6, 7, 8],      # 食指: MCP(2DOF), PIP(1DOF), DIP(1DOF)
             'middle': [0, 9, 10, 11, 12],  # 中指: MCP(2DOF), PIP(1DOF), DIP(1DOF)
             'ring': [0, 13, 14, 15, 16],   # 无名指: MCP(2DOF), PIP(1DOF), DIP(1DOF)
             'pinky': [0, 17, 18, 19, 20]   # 小指: MCP(2DOF), PIP(1DOF), DIP(1DOF)
         }
 
-        # 设置基础角度补偿，用于初始手势校准
+        # 设置基础角度补偿
         self.base_angles = {
             'thumb_cmc_flexion': 15,
             'thumb_mcp_flexion': 10,
@@ -28,57 +42,162 @@ class HandAngleCalculator:
             'pinky_mcp_flexion': 8
         }
 
-
-        self.angle_history = {}  # 存储历史角度数据
-        self.history_length = 5  # 历史数据长度
-        self.kalman_filters = {}  # 卡尔曼滤波器字典
-
+        # 卡尔曼滤波参数配置
+        self.kalman_params = {
+            'thumb': {
+                'cmc_flexion': {'P': 1.0, 'Q': 0.2, 'R': 1.5},
+                'mcp_flexion': {'P': 1.0, 'Q': 0.25, 'R': 1.2},
+                'ip_flexion': {'P': 1.0, 'Q': 0.2, 'R': 1.0},
+                'mcp_abduction': {'P': 1.0, 'Q': 0.15, 'R': 1.8}
+            },
+            'index': {
+                'mcp_flexion': {'P': 1.0, 'Q': 0.15, 'R': 1.2},
+                'pip_flexion': {'P': 1.0, 'Q': 0.12, 'R': 1.0},
+                'dip_flexion': {'P': 1.0, 'Q': 0.1, 'R': 0.8},
+                'mcp_abduction': {'P': 1.0, 'Q': 0.08, 'R': 1.5}
+            },
+            'middle': {
+                'mcp_flexion': {'P': 1.0, 'Q': 0.15, 'R': 1.2},
+                'pip_flexion': {'P': 1.0, 'Q': 0.12, 'R': 1.0},
+                'dip_flexion': {'P': 1.0, 'Q': 0.1, 'R': 0.8},
+                'mcp_abduction': {'P': 1.0, 'Q': 0.08, 'R': 1.5}
+            },
+            'ring': {
+                'mcp_flexion': {'P': 1.0, 'Q': 0.12, 'R': 1.3},
+                'pip_flexion': {'P': 1.0, 'Q': 0.1, 'R': 1.1},
+                'dip_flexion': {'P': 1.0, 'Q': 0.08, 'R': 0.9},
+                'mcp_abduction': {'P': 1.0, 'Q': 0.06, 'R': 1.6}
+            },
+            'pinky': {
+                'mcp_flexion': {'P': 1.0, 'Q': 0.1, 'R': 1.5},
+                'pip_flexion': {'P': 1.0, 'Q': 0.08, 'R': 1.2},
+                'dip_flexion': {'P': 1.0, 'Q': 0.06, 'R': 1.0},
+                'mcp_abduction': {'P': 1.0, 'Q': 0.05, 'R': 1.8}
+            }
+        }
 
     def apply_kalman_filter(self, angle_name, value):
         """应用卡尔曼滤波"""
+        # 获取对应手指和关节的参数
+        finger = next((f for f in ['thumb', 'index', 'middle', 'ring', 'pinky'] 
+                      if f in angle_name), None)
+        joint_type = next((j for j in ['cmc_flexion', 'mcp_flexion', 'pip_flexion', 
+                                      'dip_flexion', 'mcp_abduction', 'ip_flexion'] 
+                          if j in angle_name), None)
+        
+        if finger and joint_type and finger in self.kalman_params:
+            params = self.kalman_params[finger].get(joint_type, 
+                    {'P': 1.0, 'Q': 0.1, 'R': 1.0})
+        else:
+            params = {'P': 1.0, 'Q': 0.1, 'R': 1.0}
+        
         if angle_name not in self.kalman_filters:
             self.kalman_filters[angle_name] = {
-                'x': value,  # 状态估计（当前最优角度估计）
-                'P': 1.0,    # 估计误差协方差（初始不确定性较大）
-                'Q': 0.1,    # 过程噪声（手指运动突变程度，拇指建议0.2，小指建议0.05）
-                'R': 1.0     # 测量噪声（检测算法误差，MediaPipe通常0.5-2.0）
+                'x': value,  # 状态估计
+                'P': params['P'],  # 估计误差协方差
+                'Q': params['Q'],  # 过程噪声
+                'R': params['R']   # 测量噪声
             }
         
         kf = self.kalman_filters[angle_name]
         
-        # 预测
+        # 预测步骤
         x_pred = kf['x']
         P_pred = kf['P'] + kf['Q']
         
-        # 更新
+        # 更新步骤
         K = P_pred / (P_pred + kf['R'])  # 卡尔曼增益
         kf['x'] = x_pred + K * (value - x_pred)
         kf['P'] = (1 - K) * P_pred
         
-        return kf['x']
+        # 确保返回float类型
+        return float(kf['x'])
+
+    def detect_motion_state(self, angle_name, current_value):
+        """检测运动状态"""
+        if angle_name not in self.raw_angles:
+            self.raw_angles[angle_name] = []
+        
+        history = self.raw_angles[angle_name]
+        history.append(float(current_value))  # 确保使用float类型
+        
+        # 保持最近20帧的历史数据
+        if len(history) > 20:
+            history.pop(0)
+        
+        if len(history) < 3:
+            return 'slow'
+        
+        # 计算角速度和加速度
+        velocities = np.diff(history)
+        accelerations = np.diff(velocities)
+        
+        mean_velocity = np.mean(np.abs(velocities))
+        mean_acceleration = np.mean(np.abs(accelerations)) if len(accelerations) > 0 else 0
+        
+        # 根据速度和加速度判断运动状态
+        if mean_velocity < 1.0 and mean_acceleration < 0.5:
+            return 'static'
+        elif mean_velocity < 5.0 and mean_acceleration < 2.0:
+            return 'slow'
+        else:
+            return 'fast'
 
     def smooth_angle(self, angle_name, value):
-        """平滑角度数据"""
-        if angle_name not in self.angle_history:
-            self.angle_history[angle_name] = []
+        """平滑角度数据，根据运动状态自适应调整"""
+        try:
+            # 使用列表的固定长度来优化内存使用
+            max_history = 100
             
-        history = self.angle_history[angle_name]
-        history.append(value)
-        
-        # 保持固定长度的历史数据
-        if len(history) > self.history_length:
-            history.pop(0)
+            # 初始化或更新数据存储
+            if angle_name not in self.raw_angles:
+                self.raw_angles[angle_name] = []
+            if angle_name not in self.filtered_angles:
+                self.filtered_angles[angle_name] = []
+            if angle_name not in self.angle_history:
+                self.angle_history[angle_name] = []
             
-        # 使用加权移动平均
-        weights = np.exp(np.linspace(-1, 0, len(history)))
-        weights /= weights.sum()
-        
-        smoothed = np.average(history, weights=weights)
-        
-        # 应用卡尔曼滤波
-        filtered = self.apply_kalman_filter(angle_name, smoothed)
-        
-        return round(filtered, 2)
+            # 高效地更新历史数据
+            raw_angles = self.raw_angles[angle_name]
+            raw_angles.append(float(value))
+            if len(raw_angles) > max_history:
+                raw_angles.pop(0)
+            
+            # 检测运动状态并获取适当的历史长度
+            motion_state = self.detect_motion_state(angle_name, value)
+            history_length = self.history_config[motion_state]
+            
+            # 更新角度历史
+            history = self.angle_history[angle_name]
+            history.append(value)
+            while len(history) > history_length:
+                history.pop(0)
+            
+            # 计算权重
+            weights = np.exp(np.linspace(
+                -2 if motion_state == 'fast' else -1 if motion_state == 'slow' else -0.5,
+                0,
+                len(history)
+            ))
+            weights /= weights.sum()
+            
+            # 计算平滑值
+            smoothed = np.average(history, weights=weights)
+            
+            # 应用卡尔曼滤波
+            filtered = self.apply_kalman_filter(angle_name, smoothed)
+            
+            # 更新滤波后的数据
+            filtered_angles = self.filtered_angles[angle_name]
+            filtered_angles.append(float(filtered))
+            if len(filtered_angles) > max_history:
+                filtered_angles.pop(0)
+            
+            return round(filtered, 2)
+            
+        except Exception as e:
+            print(f"平滑角度数据错误: {e}")
+            return value  # 发生错误时返回原始值
     
     def process_angle(self, angle_name, value, min_val, max_val):
         """处理角度数据：限制范围、平滑和滤波"""

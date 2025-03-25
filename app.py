@@ -270,38 +270,58 @@ def angle_comparison():
     """角度比较页面"""
     return render_template('angle_comparison.html')
 
-# @app.route('/get_angle_comparison')
-# def get_angle_comparison():
-#     """获取原始和滤波后的角度数据"""
-#     global realsense_collector
+@app.route('/get_angle_comparison')
+def get_angle_comparison():
+    """获取原始和滤波后的角度数据"""
+    global realsense_collector
     
-#     if not realsense_collector:
-#         return jsonify({
-#             'status': 'error',
-#             'message': 'RealSense采集器未初始化'
-#         })
+    if not realsense_collector:
+        return jsonify({
+            'status': 'error',
+            'message': 'RealSense采集器未初始化'
+        })
     
-#     try:
-#         # 获取手部数据
-#         calculator = realsense_collector.calculator
-#         raw_angles = calculator.raw_angles
-#         filtered_angles = calculator.filtered_angles
+    try:
+        calculator = realsense_collector.calculator
         
-#         return jsonify({
-#             'status': 'success',
-#             'raw_angles': raw_angles,
-#             'filtered_angles': filtered_angles,
-#             'motion_states': {
-#                 angle_name: calculator.detect_motion_state(angle_name, filtered_angles[angle_name][-1])
-#                 for angle_name in filtered_angles
-#                 if len(filtered_angles[angle_name]) > 0
-#             }
-#         })
-#     except Exception as e:
-#         return jsonify({
-#             'status': 'error',
-#             'message': str(e)
-#         })
+        # 使用更高效的数据处理方式
+        max_points = 50  # 减少数据点数量以提高性能
+        
+        # 使用列表推导式和切片操作优化数据处理
+        raw_angles = {
+            k: [float(x) for x in v[-max_points:]]
+            for k, v in calculator.raw_angles.items()
+            if v  # 只处理非空列表
+        }
+        
+        filtered_angles = {
+            k: [float(x) for x in v[-max_points:]]
+            for k, v in calculator.filtered_angles.items()
+            if v  # 只处理非空列表
+        }
+        
+        # 优化运动状态计算
+        motion_states = {
+            k: calculator.detect_motion_state(k, v[-1])
+            for k, v in filtered_angles.items()
+            if v  # 只处理非空列表
+        }
+        
+        return jsonify({
+            'status': 'success',
+            'raw_angles': raw_angles,
+            'filtered_angles': filtered_angles,
+            'motion_states': motion_states
+        })
+        
+    except Exception as e:
+        print(f"获取角度比较数据错误: {e}")
+        import traceback
+        print(traceback.format_exc())
+        return jsonify({
+            'status': 'error',
+            'message': str(e)
+        })
 
 
 def initialize_system():
