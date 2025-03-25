@@ -635,6 +635,9 @@
             <button id="recordBtn" onclick="toggleRecording()"><i class="fas fa-record-vinyl"></i> 开始记录</button>
             <button onclick="resetData()" class="reset-btn"><i class="fas fa-redo"></i> 重置数据</button>
             <button onclick="resetMyoConnection()" class="reset-btn"><i class="fas fa-sync"></i> 重置Myo连接</button>
+            <button onclick="window.open('/angle_comparison', '_blank')">
+                <i class="fas fa-chart-line"></i> 角度滤波效果比较
+            </button>
         </div>
     </div>
 
@@ -973,23 +976,71 @@
                     const icon = fingerIcons[finger] || 'fa-hand';
                     let html = `<h4><i class="fas ${icon}"></i> ${this.getFingerName(finger)}</h4>`;
 
-                    ['mcp', 'pip', 'dip'].forEach(joint => {
-                        movements.forEach(movement => {
-                            const angleKey = `${finger}_${joint}_${movement}`;
-                            if (angleKey in handData) {
-                                const angle = handData[angleKey];
-                                const color = movement === 'flexion' ? 'var(--success-color)' : 'var(--primary-color)';
-                                const icon = movement === 'flexion' ? 'fa-angle-down' : 'fa-angle-right';
+                    if (finger === 'thumb') {
+                        // 拇指特殊处理: CMC, MCP, IP关节
+                        // CMC关节屈曲
+                        if ('thumb_cmc_flexion' in handData) {
+                            const angle = handData['thumb_cmc_flexion'];
+                            html += `
+                                <div class="joint-angle">
+                                    <span><i class="fas fa-angle-down" style="color: var(--success-color); margin-right: 5px;"></i>CMC关节 屈曲</span>
+                                    <span style="color: var(--success-color)">${angle.toFixed(1)}°</span>
+                                </div>
+                            `;
+                        }
+                        
+                        // MCP关节屈曲
+                        if ('thumb_mcp_flexion' in handData) {
+                            const angle = handData['thumb_mcp_flexion'];
+                            html += `
+                                <div class="joint-angle">
+                                    <span><i class="fas fa-angle-down" style="color: var(--success-color); margin-right: 5px;"></i>MCP关节 屈曲</span>
+                                    <span style="color: var(--success-color)">${angle.toFixed(1)}°</span>
+                                </div>
+                            `;
+                        }
+                        
+                        // MCP关节外展
+                        if ('thumb_mcp_abduction' in handData) {
+                            const angle = handData['thumb_mcp_abduction'];
+                            html += `
+                                <div class="joint-angle">
+                                    <span><i class="fas fa-angle-right" style="color: var(--primary-color); margin-right: 5px;"></i>MCP关节 外展</span>
+                                    <span style="color: var(--primary-color)">${angle.toFixed(1)}°</span>
+                                </div>
+                            `;
+                        }
+                        
+                        // IP关节屈曲
+                        if ('thumb_ip_flexion' in handData) {
+                            const angle = handData['thumb_ip_flexion'];
+                            html += `
+                                <div class="joint-angle">
+                                    <span><i class="fas fa-angle-down" style="color: var(--success-color); margin-right: 5px;"></i>IP关节 屈曲</span>
+                                    <span style="color: var(--success-color)">${angle.toFixed(1)}°</span>
+                                </div>
+                            `;
+                        }
+                    } else {
+                        // 其他手指保持原有逻辑: MCP, PIP, DIP关节
+                        ['mcp', 'pip', 'dip'].forEach(joint => {
+                            movements.forEach(movement => {
+                                const angleKey = `${finger}_${joint}_${movement}`;
+                                if (angleKey in handData) {
+                                    const angle = handData[angleKey];
+                                    const color = movement === 'flexion' ? 'var(--success-color)' : 'var(--primary-color)';
+                                    const icon = movement === 'flexion' ? 'fa-angle-down' : 'fa-angle-right';
 
-                                html += `
-                                    <div class="joint-angle">
-                                        <span><i class="fas ${icon}" style="color: ${color}; margin-right: 5px;"></i>${this.getJointName(joint)} ${this.getMovementName(movement)}</span>
-                                        <span style="color: ${color}">${angle.toFixed(1)}°</span>
-                                    </div>
-                                `;
-                            }
+                                    html += `
+                                        <div class="joint-angle">
+                                            <span><i class="fas ${icon}" style="color: ${color}; margin-right: 5px;"></i>${this.getJointName(joint)} ${this.getMovementName(movement)}</span>
+                                            <span style="color: ${color}">${angle.toFixed(1)}°</span>
+                                        </div>
+                                    `;
+                                }
+                            });
                         });
-                    });
+                    }
 
                     section.innerHTML = html;
 
@@ -1023,7 +1074,9 @@
                 return {
                     'mcp': 'MCP关节',
                     'pip': 'PIP关节',
-                    'dip': 'DIP关节'
+                    'dip': 'DIP关节',
+                    'cmc': 'CMC关节',
+                    'ip': 'IP关节'
                 }[joint] || joint;
             }
 

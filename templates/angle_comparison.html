@@ -1,0 +1,104 @@
+<!-- templates/angle_comparison.html -->
+<!DOCTYPE html>
+<html>
+<head>
+    <title>角度滤波效果比较</title>
+    <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
+    <style>
+        .chart-container {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 20px;
+            padding: 20px;
+        }
+        .chart {
+            height: 300px;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            padding: 10px;
+        }
+        .motion-state {
+            text-align: center;
+            padding: 5px;
+            margin: 5px;
+            border-radius: 4px;
+        }
+        .static { background-color: #90EE90; }
+        .slow { background-color: #FFB6C1; }
+        .fast { background-color: #87CEEB; }
+    </style>
+</head>
+<body>
+    <div id="motion-states"></div>
+    <div class="chart-container" id="charts"></div>
+    
+    <script>
+        const angleTypes = [
+            'thumb_cmc_flexion', 'thumb_mcp_flexion', 'thumb_ip_flexion',
+            'index_mcp_flexion', 'index_pip_flexion', 'index_dip_flexion',
+            'middle_mcp_flexion', 'middle_pip_flexion', 'middle_dip_flexion',
+            'ring_mcp_flexion', 'ring_pip_flexion', 'ring_dip_flexion',
+            'pinky_mcp_flexion', 'pinky_pip_flexion', 'pinky_dip_flexion'
+        ];
+
+        function updateCharts() {
+            fetch('/get_angle_comparison')
+                .then(response => response.json())
+                .then(data => {
+                    if (data.status === 'success') {
+                        // 更新运动状态显示
+                        const motionStatesDiv = document.getElementById('motion-states');
+                        motionStatesDiv.innerHTML = '';
+                        Object.entries(data.motion_states).forEach(([angle, state]) => {
+                            const stateDiv = document.createElement('div');
+                            stateDiv.className = `motion-state ${state}`;
+                            stateDiv.textContent = `${angle}: ${state}`;
+                            motionStatesDiv.appendChild(stateDiv);
+                        });
+
+                        // 更新图表
+                        angleTypes.forEach(angleType => {
+                            const rawData = data.raw_angles[angleType] || [];
+                            const filteredData = data.filtered_angles[angleType] || [];
+
+                            const trace1 = {
+                                y: rawData,
+                                name: '原始数据',
+                                type: 'scatter',
+                                line: { color: '#FF6B6B' }
+                            };
+
+                            const trace2 = {
+                                y: filteredData,
+                                name: '滤波后数据',
+                                type: 'scatter',
+                                line: { color: '#4ECDC4' }
+                            };
+
+                            const layout = {
+                                title: angleType,
+                                height: 300,
+                                margin: { t: 30, b: 30, l: 30, r: 30 },
+                                showlegend: true
+                            };
+
+                            Plotly.newPlot(`chart-${angleType}`, [trace1, trace2], layout);
+                        });
+                    }
+                });
+        }
+
+        // 初始化图表容器
+        const chartsContainer = document.getElementById('charts');
+        angleTypes.forEach(angleType => {
+            const chartDiv = document.createElement('div');
+            chartDiv.id = `chart-${angleType}`;
+            chartDiv.className = 'chart';
+            chartsContainer.appendChild(chartDiv);
+        });
+
+        // 定期更新图表
+        setInterval(updateCharts, 100);
+    </script>
+</body>
+</html>

@@ -3,7 +3,7 @@ import mediapipe as mp
 import pyrealsense2 as rs
 import numpy as np
 from threading import Lock
-from data_processing.hand_angles import HandAngleCalculator
+from data_processing.hand_angles_improve import HandAngleCalculator
 import time
 
 class RealSenseCollector:
@@ -88,6 +88,7 @@ class RealSenseCollector:
         """处理手部关键点，计算角度并绘制可视化"""
         # 计算并绘制手部坐标系
         origin, rotation_matrix = self.calculator.create_hand_coordinate_system(landmarks)
+
         self.calculator.draw_hand_coordinate_system(image, origin, rotation_matrix)
         
         # 计算关节角度

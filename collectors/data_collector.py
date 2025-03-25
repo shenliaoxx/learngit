@@ -214,8 +214,15 @@ class DataCollector:
                         self.hand_buffer['timestamps'].append(timestamp)
 
                         angles_data = []
-                        for finger in ['thumb', 'index', 'middle', 'ring', 'pinky']:
-                            
+                        # 拇指处理 - 使用CMC, MCP, IP关节
+                        # CMC和MCP各有1个自由度(屈曲)，MCP有额外的外展自由度，IP有1个自由度(屈曲)
+                        angles_data.append(data.get("thumb_cmc_flexion", 0.0))
+                        angles_data.append(data.get("thumb_mcp_flexion", 0.0))
+                        angles_data.append(data.get("thumb_mcp_abduction", 0.0))
+                        angles_data.append(data.get("thumb_ip_flexion", 0.0))
+                        
+                        # 其他手指处理保持不变 - 使用MCP, PIP, DIP关节
+                        for finger in ['index', 'middle', 'ring', 'pinky']:
                             # MCP关节2个自由度，屈曲和外展
                             angles_data.append(data.get(f"{finger}_mcp_flexion", 0.0))
                             angles_data.append(data.get(f"{finger}_mcp_abduction", 0.0))
@@ -236,7 +243,7 @@ class DataCollector:
                         
                         # 保存最后一次时间戳
                         self.stats['last_hand_time'] = timestamp
- 
+
                 except Exception as e:
                     print(f"处理手部数据错误: {e}")
                     import traceback
@@ -288,24 +295,19 @@ class DataCollector:
             return filepath
 
 
-    def save_recording(self,hand_info='right', recording_number=4,repeat_times=6):
+    def save_recording(self, hand_info='right', recording_number=4, repeat_times=6):
         """保存记录数据"""
         try:
-            # 简化的文件名，只使用时间戳
             timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
             filename = f"{timestamp}_{recording_number}_{hand_info}_{repeat_times}.h5"
             
-            # 简化的保存路径，直接保存在 data 目录下
             if not os.path.exists('data'):
                 os.makedirs('data')
-                
+            
             filepath = os.path.join('data', filename)
             
-            print(f"正在保存数据到: {filepath}, EMG样本数: {len(self.emg_buffer['timestamps'])}, 手部样本数: {len(self.hand_buffer['timestamps'])}")
+            print(f"正在保存数据到: {filepath}")
 
-            # 分批保存大型数据集
-            batch_size = 500  # 每批处理的样本数
-            
             with h5py.File(filepath, 'w') as f:
                 # 创建EMG数据集
                 emg_group = f.create_group('emg')
@@ -320,26 +322,70 @@ class DataCollector:
                 emg_raw = emg_group.create_dataset('raw_data', shape=emg_raw_shape, dtype=np.float64)
                 emg_filtered = emg_group.create_dataset('filtered_data', shape=emg_filtered_shape, dtype=np.float64)
                 
+                # 添加EMG通道信息
+                emg_channels = [f"channel_{i+1}" for i in range(8)]
+                emg_raw.attrs['channels'] = emg_channels
+                emg_filtered.attrs['channels'] = emg_channels
+                
                 # 分批写入EMG数据
+                batch_size = 500
                 for i in range(0, len(self.emg_buffer['timestamps']), batch_size):
                     end = min(i + batch_size, len(self.emg_buffer['timestamps']))
                     emg_timestamps[i:end] = self.emg_buffer['timestamps'][i:end]
                     emg_raw[i:end] = self.emg_buffer['raw_data'][i:end]
                     emg_filtered[i:end] = self.emg_buffer['filtered_data'][i:end]
-                    print(f"已保存EMG数据批次: {i//batch_size + 1}/{(len(self.emg_buffer['timestamps'])-1)//batch_size + 1}, 样本: {i}-{end}")
+                    print(f"已保存EMG数据批次: {i//batch_size + 1}/{(len(self.emg_buffer['timestamps'])-1)//batch_size + 1}")
                 
                 # 保存手部数据
                 hand_group = f.create_group('hand')
                 hand_group.create_dataset('timestamps', data=self.hand_buffer['timestamps'])
-                hand_group.create_dataset('joint_angles', data=self.hand_buffer['joint_angles'])
                 
-
+                # 创建关节角度数据集
+                joint_angles = hand_group.create_dataset('joint_angles', data=self.hand_buffer['joint_angles'])
+                
+                # 定义关节角度标签
+                angle_labels = [
+                    # 拇指关节
+                    'thumb_cmc_flexion',    # CMC屈曲
+                    'thumb_mcp_flexion',    # MCP屈曲
+                    'thumb_mcp_abduction',  # MCP外展
+                    'thumb_ip_flexion',     # IP屈曲
+                    
+                    # 食指关节
+                    'index_mcp_flexion',    # MCP屈曲
+                    'index_mcp_abduction',  # MCP外展
+                    'index_pip_flexion',    # PIP屈曲
+                    'index_dip_flexion',    # DIP屈曲
+                    
+                    # 中指关节
+                    'middle_mcp_flexion',   # MCP屈曲
+                    'middle_mcp_abduction', # MCP外展
+                    'middle_pip_flexion',   # PIP屈曲
+                    'middle_dip_flexion',   # DIP屈曲
+                    
+                    # 无名指关节
+                    'ring_mcp_flexion',     # MCP屈曲
+                    'ring_mcp_abduction',   # MCP外展
+                    'ring_pip_flexion',     # PIP屈曲
+                    'ring_dip_flexion',     # DIP屈曲
+                    
+                    # 小指关节
+                    'pinky_mcp_flexion',    # MCP屈曲
+                    'pinky_mcp_abduction',  # MCP外展
+                    'pinky_pip_flexion',    # PIP屈曲
+                    'pinky_dip_flexion'     # DIP屈曲
+                ]
+                
+                # 将关节角度标签添加为数据集的属性
+                joint_angles.attrs['angle_labels'] = angle_labels
+                
                 # 保存基本的统计信息
                 stats = f.create_group('stats')
                 stats.attrs['emg_samples'] = len(self.emg_buffer['timestamps'])
                 stats.attrs['hand_samples'] = len(self.hand_buffer['timestamps'])
-                stats.attrs['repeat_times'] = repeat_times  # 添加重复次数信息
-
+                stats.attrs['repeat_times'] = repeat_times
+                stats.attrs['hand_info'] = hand_info
+                stats.attrs['recording_number'] = recording_number
                 
             print(f"数据保存成功: {filepath}")
             return filepath

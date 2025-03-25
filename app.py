@@ -264,6 +264,44 @@ def reset_myo():
             'status': 'error',
             'message': str(e)
         })
+    
+@app.route('/angle_comparison')
+def angle_comparison():
+    """角度比较页面"""
+    return render_template('angle_comparison.html')
+
+# @app.route('/get_angle_comparison')
+# def get_angle_comparison():
+#     """获取原始和滤波后的角度数据"""
+#     global realsense_collector
+    
+#     if not realsense_collector:
+#         return jsonify({
+#             'status': 'error',
+#             'message': 'RealSense采集器未初始化'
+#         })
+    
+#     try:
+#         # 获取手部数据
+#         calculator = realsense_collector.calculator
+#         raw_angles = calculator.raw_angles
+#         filtered_angles = calculator.filtered_angles
+        
+#         return jsonify({
+#             'status': 'success',
+#             'raw_angles': raw_angles,
+#             'filtered_angles': filtered_angles,
+#             'motion_states': {
+#                 angle_name: calculator.detect_motion_state(angle_name, filtered_angles[angle_name][-1])
+#                 for angle_name in filtered_angles
+#                 if len(filtered_angles[angle_name]) > 0
+#             }
+#         })
+#     except Exception as e:
+#         return jsonify({
+#             'status': 'error',
+#             'message': str(e)
+#         })
 
 
 def initialize_system():
