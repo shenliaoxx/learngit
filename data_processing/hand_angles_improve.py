@@ -206,40 +206,49 @@ class HandAngleCalculator:
         # 然后应用平滑和滤波
         return self.smooth_angle(angle_name, clipped) 
                
+
+    
     def create_hand_coordinate_system(self, landmarks):
-        """创建手部解剖坐标系"""
+        """完全向量化的手部坐标系创建"""
+        # 一次性将所有landmark转换为numpy数组 (21x3)
         points = np.array([[lm.x, lm.y, lm.z] for lm in landmarks.landmark])
         
-        # 手掌中心（原点）
+        # 原点为手腕点
         origin = points[0]
         
-        # Z轴：垂直于手掌平面（手掌法向量）
-        palm_normal = np.cross(
-            points[5] - points[0],    # 食指MCP到手掌中心的向量
-            points[17] - points[0]    # 小指MCP到手掌中心的向量
-        )
-        z_axis = palm_normal / np.linalg.norm(palm_normal)
+        # 使用多个向量计算更稳定的手掌法向量
+        # 选择手掌区域的多个边向量进行叉积平均
+        edge_vectors = np.array([
+            points[5] - points[0],   # 手腕到食指MCP
+            points[17] - points[0],  # 手腕到小指MCP
+            points[9] - points[0],   # 手腕到中指MCP
+            points[13] - points[0]   # 手腕到无名指MCP
+        ])
         
-        # Y轴：使用手掌中轴（考虑所有手指MCP关节）
-        mcp_points = np.array([points[5], points[9], points[13]])  # 食指、中指、无名指的MCP
-        palm_midline = np.mean(mcp_points, axis=0) - origin
-        y_temp = palm_midline - np.dot(palm_midline, z_axis) * z_axis
+        # 计算所有可能的叉积组合 (避免循环)
+        cross_prods = np.cross(edge_vectors[[0,0,0,1,1,2]], 
+                            edge_vectors[[1,2,3,2,3,3]])
+        
+        # 平均法向量并归一化
+        z_axis = np.mean(cross_prods, axis=0)
+        z_axis /= np.linalg.norm(z_axis)
+        
+        # 计算手掌中轴(Y轴) - 使用所有MCP点的中心
+        mcp_points = points[[2,5,9,13,17]]  # 所有MCP点
+        palm_center = np.mean(mcp_points, axis=0)
+        y_temp = palm_center - origin
+        y_temp = y_temp - np.dot(y_temp, z_axis) * z_axis  # 投影到手掌平面
         y_axis = y_temp / np.linalg.norm(y_temp)
         
-        # X轴：右手定则，垂直于Y和Z
+        # X轴通过右手定则确定
         x_axis = np.cross(y_axis, z_axis)
-        x_axis = x_axis / np.linalg.norm(x_axis)
+        x_axis /= np.linalg.norm(x_axis)
         
-        # 创建旋转矩阵
-        rotation_matrix = np.vstack([x_axis, y_axis, z_axis]).T
+        # 构建旋转矩阵 (3x3)
+        rotation_matrix = np.column_stack((x_axis, y_axis, z_axis))
         
         return origin, rotation_matrix
     
-
-    
-    def transform_to_local(self, point, origin, rotation_matrix):
-        """将点转换到局部坐标系"""
-        return np.dot(rotation_matrix.T, (point - origin))
         
     def calculate_flexion_angle(self, p1, p2, p3, origin, rotation_matrix, base_angle=0, joint_type=None):
         """计算屈曲角度，适用于垂直手掌姿势
@@ -252,34 +261,35 @@ class HandAngleCalculator:
             屈曲角度（度）
         """
         try:
-            # 1. 将关键点转换为numpy数组（世界坐标系）
-            point1 = np.array([p1.x, p1.y, p1.z])
-            point2 = np.array([p2.x, p2.y, p2.z])
-            point3 = np.array([p3.x, p3.y, p3.z])
+            # 将三个点一次性转换为数组并转换到局部坐标系
+            points = np.array([[p1.x, p1.y, p1.z],
+                            [p2.x, p2.y, p2.z],
+                            [p3.x, p3.y, p3.z]])
             
-            # 2. 将点转换到手部坐标系
-            point1_local = self.transform_to_local(point1, origin, rotation_matrix)
-            point2_local = self.transform_to_local(point2, origin, rotation_matrix)
-            point3_local = self.transform_to_local(point3, origin, rotation_matrix)
+            # 批量坐标转换 (3x3) = (3x3) @ (3x3).T
+            points_local = (rotation_matrix.T @ (points - origin).T).T
             
-            # 3. 计算局部坐标系下的向量
-            vector1 = point2_local - point1_local  # 近端到中端的向量
-            vector2 = point3_local - point2_local  # 中端到远端的向量
+            # 计算向量
+            vector1 = points_local[1] - points_local[0]
+            vector2 = points_local[2] - points_local[1]
             
-            # 4. 检查向量长度
-            if np.linalg.norm(vector1) < 0.001 or np.linalg.norm(vector2) < 0.001:
-                return 0
+            # 向量长度
+            norm1 = np.linalg.norm(vector1)
+            norm2 = np.linalg.norm(vector2)
             
-            # 5. 计算夹角 - 直接使用向量点积公式
-            cos_angle = np.dot(vector1, vector2) / (np.linalg.norm(vector1) * np.linalg.norm(vector2))
+            if norm1 < 1e-6 or norm2 < 1e-6:
+                return 0.0
+            
+            # 向量夹角计算 (完全向量化)
+            cos_angle = np.dot(vector1, vector2) / (norm1 * norm2)
             angle = np.degrees(np.arccos(np.clip(cos_angle, -1.0, 1.0)))
+
             # 6. 特殊处理某些关节类型
             if joint_type == 'thumb_cmc':
                 # 拇指CMC关节三维运动更复杂，需考虑其他因素
                 # 计算CMC到MCP向量相对于手掌平面的倾斜程度
-                palm_normal = rotation_matrix[:, 2]  # Z轴为手掌法向量
-                thumb_dir = vector2 / np.linalg.norm(vector2)
-                
+                palm_normal = rotation_matrix[:, 2]
+                thumb_dir = vector2 / norm2
                 # 计算向量与手掌法向量的夹角
                 thumb_elevation = 90 - np.degrees(np.arccos(np.clip(np.abs(np.dot(thumb_dir, palm_normal)), -1.0, 1.0)))
                 
@@ -292,7 +302,7 @@ class HandAngleCalculator:
             # # 6. 减去基础角度补偿
             # compensated_angle = predicted_angle - base_angle
 
-            return max(0, angle)
+            return max(0.0, angle)
             
         except Exception as e:
             print(f"计算屈曲角度错误: {e}")
@@ -308,9 +318,9 @@ class HandAngleCalculator:
             # 1. 获取手部关键点
             points = np.array([[lm.x, lm.y, lm.z] for lm in hand_landmarks.landmark])
             
-            # 2. 将输入向量归一化并转换到手部坐标系
-            vector_normalized = vector / np.linalg.norm(vector)
-            vector_local = np.dot(rotation_matrix.T, vector_normalized)
+            # 向量归一化并转换到局部坐标系
+            vector_norm = vector / np.linalg.norm(vector)
+            vector_local = rotation_matrix.T @ vector_norm
             
             # 3. 投影到手掌平面（XY平面）
             z_axis = rotation_matrix[:, 2]  # 手掌法向量
@@ -323,46 +333,41 @@ class HandAngleCalculator:
             
             vector_proj = vector_proj / proj_length
             
-            # 4. 选择合适的参考向量
+            # 根据手指类型选择参考向量 (向量化选择)
             if finger_name == 'thumb':
-                # 拇指：使用食指MCP方向作为参考
-                index_vector = points[6] - points[5]  # 食指MCP方向
-                index_vector = index_vector / np.linalg.norm(index_vector)
-                reference_local = np.dot(rotation_matrix.T, index_vector)
+                index_vector = points[6] - points[5]
+                index_vector /= np.linalg.norm(index_vector)
+                reference_local = rotation_matrix.T @ index_vector
             elif finger_name == 'pinky':
-                # 小指：使用无名指MCP方向作为参考
-                ring_vector = points[14] - points[13]  # 无名指MCP方向
-                ring_vector = ring_vector / np.linalg.norm(ring_vector)
-                reference_local = np.dot(rotation_matrix.T, ring_vector)
+                ring_vector = points[14] - points[13]
+                ring_vector /= np.linalg.norm(ring_vector)
+                reference_local = rotation_matrix.T @ ring_vector
             elif finger_name == 'index':
-                # 食指：混合使用Y轴和中指方向
-                middle_vector = points[10] - points[9]  # 中指PIP到MCP的向量
-                middle_vector = middle_vector / np.linalg.norm(middle_vector)
-                middle_local = np.dot(rotation_matrix.T, middle_vector)
-                
-                # 80% Y轴 + 20% 中指方向
+                middle_vector = points[10] - points[9]
+                middle_vector /= np.linalg.norm(middle_vector)
+                middle_local = rotation_matrix.T @ middle_vector
                 reference_local = 0.8 * rotation_matrix[:, 1] + 0.2 * middle_local
-                reference_local = reference_local / np.linalg.norm(reference_local)
+                reference_local /= np.linalg.norm(reference_local)
             else:
-                # 其他手指：使用手掌Y轴作为参考
-                reference_local = rotation_matrix[:, 1]            
+                reference_local = rotation_matrix[:, 1]         
 
+            # 参考向量投影
+            ref_proj = reference_local - np.dot(reference_local, z_axis) * z_axis
+            ref_norm = np.linalg.norm(ref_proj)
+
+            if ref_norm < 0.05:
+                ref_proj = rotation_matrix[:, 0] - np.dot(rotation_matrix[:, 0], z_axis) * z_axis
+                ref_proj /= np.linalg.norm(ref_proj)
+            else:
+                ref_proj /= ref_norm
             
-            # 5. 将参考向量投影到手掌平面
-            reference_proj = reference_local - np.dot(reference_local, z_axis) * z_axis
-            if np.linalg.norm(reference_proj) < 0.05:
-                # 备用方案：如果参考向量投影太小，使用X轴
-                reference_proj = rotation_matrix[:, 0] - np.dot(rotation_matrix[:, 0], z_axis) * z_axis
-            
-            reference_proj = reference_proj / np.linalg.norm(reference_proj)
-            
-            # 6. 计算外展角度（无方向，只有大小）
-            dot_product = np.dot(vector_proj, reference_proj)
+            # 计算无方向角度
+            dot_product = np.dot(vector_proj, ref_proj)
             angle = np.degrees(np.arccos(np.clip(dot_product, -1.0, 1.0)))
             angle = min(angle, 180-angle)
             
             # 7. 减去基础角度补偿并确保角度非负
-            compensated_angle = max(0, angle - base_angle)
+            compensated_angle = max(0.0, angle - base_angle)
 
             return compensated_angle
             

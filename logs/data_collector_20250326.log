@@ -1,0 +1,41 @@
+2025-03-26 12:30:59,197 - DataCollector - INFO - 数据采集线程已启动
+2025-03-26 12:31:09,024 - DataCollector - INFO - 开始记录，元数据: {'subject_id': 'subject1', 'session_id': '1742963469', 'task_type': 'manual_recording', 'dominant_hand': 'right', 'action': 'action1', 'trial': 1}
+2025-03-26 12:31:14,037 - DataCollector - INFO - 采集统计 - EMG: 199.7Hz (1000样本) | 手部: 32.2Hz (161样本) | 持续时间: 5.0s
+2025-03-26 12:31:14,037 - DataCollector - INFO - Myo采样统计 - 采样率: 202.2Hz | 平均间隔: 4.95ms | 标准差: 8.49ms
+2025-03-26 12:31:19,037 - DataCollector - INFO - 采集统计 - EMG: 199.6Hz (1998样本) | 手部: 32.2Hz (322样本) | 持续时间: 10.0s
+2025-03-26 12:31:19,038 - DataCollector - INFO - Myo采样统计 - 采样率: 201.6Hz | 平均间隔: 4.96ms | 标准差: 8.44ms
+2025-03-26 12:31:24,050 - DataCollector - INFO - 采集统计 - EMG: 199.6Hz (2996样本) | 手部: 32.2Hz (483样本) | 持续时间: 15.0s
+2025-03-26 12:31:24,050 - DataCollector - INFO - Myo采样统计 - 采样率: 200.5Hz | 平均间隔: 4.99ms | 标准差: 8.89ms
+2025-03-26 12:31:29,052 - DataCollector - INFO - 采集统计 - EMG: 199.3Hz (3993样本) | 手部: 32.2Hz (644样本) | 持续时间: 20.0s
+2025-03-26 12:31:29,053 - DataCollector - INFO - Myo采样统计 - 采样率: 194.2Hz | 平均间隔: 5.15ms | 标准差: 8.86ms
+2025-03-26 12:31:34,064 - DataCollector - INFO - 采集统计 - EMG: 199.6Hz (4996样本) | 手部: 32.2Hz (806样本) | 持续时间: 25.0s
+2025-03-26 12:31:34,064 - DataCollector - INFO - Myo采样统计 - 采样率: 199.2Hz | 平均间隔: 5.02ms | 标准差: 8.91ms
+2025-03-26 12:31:39,077 - DataCollector - INFO - 采集统计 - EMG: 199.5Hz (5992样本) | 手部: 32.2Hz (967样本) | 持续时间: 30.1s
+2025-03-26 12:31:39,080 - DataCollector - INFO - Myo采样统计 - 采样率: 200.7Hz | 平均间隔: 4.98ms | 标准差: 8.95ms
+2025-03-26 12:31:44,077 - DataCollector - INFO - 采集统计 - EMG: 199.5Hz (6996样本) | 手部: 32.2Hz (1127样本) | 持续时间: 35.1s
+2025-03-26 12:31:44,078 - DataCollector - INFO - Myo采样统计 - 采样率: 200.4Hz | 平均间隔: 4.99ms | 标准差: 9.38ms
+2025-03-26 12:31:44,797 - DataCollector - INFO - 正在保存数据到: data\20250326_123144_subject1_1742963469_manual_recording.h5
+2025-03-26 12:31:44,852 - DataCollector - INFO - 数据保存成功: data\20250326_123144_subject1_1742963469_manual_recording.h5
+2025-03-26 12:31:44,852 - DataCollector - INFO - 记录已停止，数据保存到: data\20250326_123144_subject1_1742963469_manual_recording.h5
+2025-03-26 12:34:22,602 - DataCollector - INFO - 开始记录，元数据: {'subject_id': 'subject1', 'session_id': '1742963662', 'task_type': 'manual_recording', 'dominant_hand': 'right', 'action': 'action1', 'trial': 1}
+2025-03-26 12:34:27,616 - DataCollector - INFO - 采集统计 - EMG: 200.6Hz (1000样本) | 手部: 32.2Hz (161样本) | 持续时间: 5.0s
+2025-03-26 12:34:27,616 - DataCollector - INFO - Myo采样统计 - 采样率: 197.8Hz | 平均间隔: 5.05ms | 标准差: 8.45ms
+2025-03-26 12:34:32,624 - DataCollector - INFO - 采集统计 - EMG: 200.0Hz (2000样本) | 手部: 32.2Hz (322样本) | 持续时间: 10.0s
+2025-03-26 12:34:32,624 - DataCollector - INFO - Myo采样统计 - 采样率: 201.4Hz | 平均间隔: 4.97ms | 标准差: 8.87ms
+2025-03-26 12:34:37,635 - DataCollector - INFO - 采集统计 - EMG: 199.7Hz (3001样本) | 手部: 32.1Hz (483样本) | 持续时间: 15.0s
+2025-03-26 12:34:37,635 - DataCollector - INFO - Myo采样统计 - 采样率: 199.0Hz | 平均间隔: 5.03ms | 标准差: 8.56ms
+2025-03-26 12:34:42,635 - DataCollector - INFO - 采集统计 - EMG: 199.8Hz (4000样本) | 手部: 32.1Hz (643样本) | 持续时间: 20.0s
+2025-03-26 12:34:42,635 - DataCollector - INFO - Myo采样统计 - 采样率: 199.2Hz | 平均间隔: 5.02ms | 标准差: 9.50ms
+2025-03-26 12:34:47,292 - DataCollector - INFO - 正在保存数据到: data\20250326_123447_subject1_1742963662_manual_recording.h5
+2025-03-26 12:34:47,338 - DataCollector - INFO - 数据保存成功: data\20250326_123447_subject1_1742963662_manual_recording.h5
+2025-03-26 12:34:47,341 - DataCollector - INFO - 记录已停止，数据保存到: data\20250326_123447_subject1_1742963662_manual_recording.h5
+2025-03-26 15:11:15,124 - DataCollector - INFO - 数据采集线程已启动
+2025-03-26 15:11:36,340 - DataCollector - INFO - 开始记录，元数据: {'subject_id': 'subject1', 'session_id': '1742973096', 'task_type': 'manual_recording', 'dominant_hand': 'right', 'action': 'action1', 'trial': 1}
+2025-03-26 15:11:41,346 - DataCollector - INFO - 采集统计 - EMG: 199.6Hz (1000样本) | 手部: 32.1Hz (161样本) | 持续时间: 5.0s
+2025-03-26 15:11:41,346 - DataCollector - INFO - Myo采样统计 - 采样率: 198.6Hz | 平均间隔: 5.04ms | 标准差: 8.72ms
+2025-03-26 15:11:46,356 - DataCollector - INFO - 采集统计 - EMG: 199.6Hz (1998样本) | 手部: 32.1Hz (322样本) | 持续时间: 10.0s
+2025-03-26 15:11:46,357 - DataCollector - INFO - Myo采样统计 - 采样率: 199.7Hz | 平均间隔: 5.01ms | 标准差: 8.83ms
+2025-03-26 15:11:50,660 - DataCollector - INFO - 正在保存数据到: data\20250326_151150_subject1_1742973096_manual_recording.h5
+2025-03-26 15:11:50,691 - DataCollector - INFO - 数据保存成功: data\20250326_151150_subject1_1742973096_manual_recording.h5
+2025-03-26 15:11:50,692 - DataCollector - INFO - 记录已停止，数据保存到: data\20250326_151150_subject1_1742973096_manual_recording.h5
+2025-03-26 15:17:26,562 - DataCollector - INFO - 数据采集线程已启动

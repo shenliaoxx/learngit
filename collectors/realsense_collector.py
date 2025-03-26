@@ -3,7 +3,7 @@ import mediapipe as mp
 import pyrealsense2 as rs
 import numpy as np
 from threading import Lock
-from data_processing.hand_angles_improve import HandAngleCalculator
+from data_processing.hand_angle_enhance import HandAngleCalculator
 import time
 
 class RealSenseCollector:
