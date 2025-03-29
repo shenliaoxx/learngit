@@ -11,9 +11,9 @@ class MotionLibrary:
                 "video": "web_videos/pinch_20250314_122804_web.mp4",
                 "key_points": ["保持手腕稳定", "只移动拇指和食指", "其他手指自然放松"],
                 "collection": {
-                    "repeat_times": 5,
-                    "duration": 3,
-                    "rest_time": 2,
+                    "repeat_times": 6,
+                    "duration": 4,
+                    "rest_time": 4,
                     "preparation_time": 3
                 }
             },
@@ -25,9 +25,9 @@ class MotionLibrary:
                 "video": "web_videos/grasp_20250314_122825_web.mp4",
                 "key_points": ["所有手指同时收拢", "保持适当力度", "手掌呈现自然弧度"],
                 "collection": {
-                    "repeat_times": 5,
-                    "duration": 3,
-                    "rest_time": 2,
+                    "repeat_times": 6,
+                    "duration": 4,
+                    "rest_time": 4,
                     "preparation_time": 3
                 }
             },
@@ -39,9 +39,9 @@ class MotionLibrary:
                 "video": "web_videos/flex_20250314_122903_web.mp4",
                 "key_points": ["保持手指自然放松", "只移动手腕关节", "动作幅度适中"],
                 "collection": {
-                    "repeat_times": 5,
-                    "duration": 3,
-                    "rest_time": 2,
+                    "repeat_times": 6,
+                    "duration": 4,
+                    "rest_time": 4,
                     "preparation_time": 3
                 }
             },
@@ -53,9 +53,9 @@ class MotionLibrary:
                 "video": "web_videos/abduction_all_fingers_20250318_165358_web.mp4",
                 "key_points": ["手掌平展", "所有手指均匀向外展开", "保持手腕稳定", "避免手指过度用力"],
                 "collection": {
-                    "repeat_times": 5,
-                    "duration": 3,
-                    "rest_time": 2,
+                    "repeat_times": 6,
+                    "duration": 4,
+                    "rest_time": 4,
                     "preparation_time": 3
                 }
             },
@@ -67,9 +67,9 @@ class MotionLibrary:
                 "video": "web_videos/fist_20250318_165604_web.mp4",
                 "key_points": ["保持手腕稳定", "手指完全收拢", "适当用力"],
                 "collection": {
-                    "repeat_times": 5,
-                    "duration": 3,
-                    "rest_time": 2,
+                    "repeat_times": 6,
+                    "duration": 4,
+                    "rest_time": 4,
                     "preparation_time": 3
                 }
             },
@@ -81,9 +81,9 @@ class MotionLibrary:
                 "video": "web_videos/thumbs_up_20250318_165659_web.mp4",
                 "key_points": ["拇指挺直", "拳头握紧", "手腕自然"],
                 "collection": {
-                    "repeat_times": 5,
-                    "duration": 3,
-                    "rest_time": 2,
+                    "repeat_times": 6,
+                    "duration": 4,
+                    "rest_time": 4,
                     "preparation_time": 3
                 }
             },
@@ -95,9 +95,9 @@ class MotionLibrary:
                 "video": "web_videos/pointing_20250318_165803_web.mp4",
                 "key_points": ["手臂自然抬起", "食指伸直", "其他手指自然放松", "手腕保持稳定"],
                 "collection": {
-                    "repeat_times": 5,
-                    "duration": 3,
-                    "rest_time": 2,
+                    "repeat_times": 6,
+                    "duration": 4,
+                    "rest_time": 4,
                     "preparation_time": 3
                 }
             },
@@ -109,9 +109,9 @@ class MotionLibrary:
                 "video": "web_videos/large_grasp_20250318_170324_web.mp4",
                 "key_points": ["手掌完全展开", "手指均匀包围物体", "保持手腕稳定", "施加适当的抓握力度"],
                 "collection": {
-                    "repeat_times": 5,
-                    "duration": 3,
-                    "rest_time": 2,
+                    "repeat_times": 6,
+                    "duration": 5,
+                    "rest_time": 5,
                     "preparation_time": 3
                 }
             },
@@ -123,9 +123,9 @@ class MotionLibrary:
                 "video": "web_videos/writing_grasp_20250318_170617_web.mp4",
                 "key_points": ["拇指与食指形成夹持", "中指支撑笔杆", "手腕自然放松", "保持手指灵活以便书写"],
                 "collection": {
-                    "repeat_times": 5,
-                    "duration": 3,
-                    "rest_time": 2,
+                    "repeat_times": 6,
+                    "duration": 5,
+                    "rest_time": 5,
                     "preparation_time": 3
                 }
             },
@@ -138,9 +138,9 @@ class MotionLibrary:
                 "video": "web_videos/parallel_extension_grasp_20250318_165129_web.mp4",
                 "key_points": ["手指平行伸展", "手掌稳定", "书本水平", "手腕自然"],
                 "collection": {
-                    "repeat_times": 5,
-                    "duration": 3,
-                    "rest_time": 2,
+                    "repeat_times": 6,
+                    "duration": 5,
+                    "rest_time": 5,
                     "preparation_time": 3
                 }
             }

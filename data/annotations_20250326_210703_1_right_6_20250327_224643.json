@@ -1,0 +1,58 @@
+{
+    "segments": [
+        {
+            "start_time": 42823.5448523,
+            "end_time": 42827.7590921,
+            "duration": 4.214239799999632,
+            "label": "\u672a\u547d\u540d\u52a8\u4f5c",
+            "notes": "",
+            "timestamp": "2025-03-27T14:46:00.556Z"
+        },
+        {
+            "start_time": 42831.4487563,
+            "end_time": 42835.9453724,
+            "duration": 4.496616099997482,
+            "label": "\u672a\u547d\u540d\u52a8\u4f5c",
+            "notes": "",
+            "timestamp": "2025-03-27T14:46:07.400Z"
+        },
+        {
+            "start_time": 42839.4691929,
+            "end_time": 42843.6205287,
+            "duration": 4.151335800001107,
+            "label": "\u672a\u547d\u540d\u52a8\u4f5c",
+            "notes": "",
+            "timestamp": "2025-03-27T14:46:10.849Z"
+        },
+        {
+            "start_time": 42847.6041224,
+            "end_time": 42851.5558953,
+            "duration": 3.9517728999999235,
+            "label": "\u672a\u547d\u540d\u52a8\u4f5c",
+            "notes": "",
+            "timestamp": "2025-03-27T14:46:14.403Z"
+        },
+        {
+            "start_time": 42855.7410128,
+            "end_time": 42859.7345424,
+            "duration": 3.993529600003967,
+            "label": "\u672a\u547d\u540d\u52a8\u4f5c",
+            "notes": "",
+            "timestamp": "2025-03-27T14:46:20.084Z"
+        },
+        {
+            "start_time": 42863.6381451,
+            "end_time": 42866.8747095,
+            "duration": 3.236564400001953,
+            "label": "\u672a\u547d\u540d\u52a8\u4f5c",
+            "notes": "",
+            "timestamp": "2025-03-27T14:46:32.468Z"
+        }
+    ],
+    "total_segments": 6,
+    "timestamp": "2025-03-27T14:46:43.800Z",
+    "metadata": {
+        "avg_duration": 4.007343100000678,
+        "total_duration": 24.044058600004064
+    }
+}

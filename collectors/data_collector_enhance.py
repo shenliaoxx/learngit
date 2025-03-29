@@ -266,7 +266,7 @@ class DataCollector:
             self.logger.info("停止记录，文件保存在: %s", filepath)
             return filepath
 
-    def save_recording(self, hand_info='right', recording_number=5, repeat_times=6):
+    def save_recording(self, hand_info='right', recording_number=2, repeat_times=6):
         """保存记录数据"""
         try:
             timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')

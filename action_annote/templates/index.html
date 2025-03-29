@@ -1,0 +1,1442 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>手部动作标注工具</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.8.1/font/bootstrap-icons.css">
+    <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <style>
+        :root {
+            --primary-color: #4a6baf;
+            --secondary-color: #6c757d;
+            --success-color: #198754;
+            --danger-color: #dc3545;
+            --light-bg: #f8f9fa;
+            --dark-bg: #343a40;
+        }
+        
+        body {
+            background-color: var(--light-bg);
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+        
+        .container-fluid {
+            padding: 20px;
+        }
+        
+        .header {
+            background-color: var(--primary-color);
+            color: white;
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+        
+        .plot-container {
+            background-color: white;
+            border-radius: 8px;
+            padding: 15px;
+            margin-bottom: 20px;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+        }
+        
+        .btn-primary {
+            background-color: var(--primary-color);
+            border-color: var(--primary-color);
+        }
+        
+        .btn-primary:hover {
+            background-color: #3d5a9e;
+            border-color: #3d5a9e;
+        }
+        
+        .card {
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+            margin-bottom: 20px;
+        }
+        
+        .card-header {
+            background-color: var(--primary-color);
+            color: white;
+            font-weight: 600;
+        }
+        
+        .segment-list {
+            max-height: 300px;
+            overflow-y: auto;
+        }
+        
+        .segment-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 8px 12px;
+            border-bottom: 1px solid #eee;
+            cursor: pointer;
+        }
+        
+        .segment-item:hover {
+            background-color: #f5f5f5;
+        }
+        
+        .segment-item.active {
+            background-color: #e9ecef;
+        }
+        
+        .suggestion-item {
+            border-left: 4px solid #ffc107;
+        }
+        
+        .annotation-controls {
+            position: sticky;
+            top: 0;
+            z-index: 100;
+            background-color: rgba(255, 255, 255, 0.9);
+            padding: 10px;
+            border-radius: 8px;
+            margin-bottom: 15px;
+            backdrop-filter: blur(5px);
+        }
+        
+        .tooltip-inner {
+            max-width: 300px;
+        }
+        
+        .zoom-controls {
+            display: flex;
+            justify-content: center;
+            margin: 10px 0;
+        }
+        
+        .data-info {
+            background-color: #e9ecef;
+            border-radius: 5px;
+            padding: 10px;
+            margin-bottom: 15px;
+        }
+        
+        .plot {
+            transition: all 0.3s ease;
+        }
+        
+        #loading {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(255, 255, 255, 0.8);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 9999;
+        }
+        
+        .spinner-border {
+            width: 3rem;
+            height: 3rem;
+        }
+        
+        /* 同步分析卡片样式 */
+        .sync-analysis-card {
+            margin-top: 20px;
+            border-top: 3px solid #4a6baf;
+        }
+        
+        .correlation-plot {
+            height: 300px;
+            margin-top: 15px;
+        }
+        
+        .analysis-result {
+            padding: 15px;
+            background-color: #f8f9fa;
+            border-radius: 5px;
+            margin-top: 15px;
+        }
+        
+        .segment-selector {
+            margin-top: 10px;
+        }
+    </style>
+</head>
+<body>
+    <div id="loading">
+        <div class="spinner-border text-primary" role="status">
+            <span class="visually-hidden">加载中...</span>
+        </div>
+    </div>
+
+    <div class="container-fluid">
+        <div class="header">
+            <div class="row align-items-center">
+                <div class="col-md-8">
+                    <h1><i class="bi bi-graph-up"></i> 手部动作标注工具</h1>
+                    <p id="dataset-info" class="mb-0">加载数据集信息...</p>
+                </div>
+                <div class="col-md-4 text-end">
+                    <button class="btn btn-light" data-bs-toggle="modal" data-bs-target="#helpModal">
+                        <i class="bi bi-question-circle"></i> 使用帮助
+                    </button>
+                </div>
+            </div>
+        </div>
+        
+        <div class="row">
+            <div class="col-md-9">
+                <div class="annotation-controls">
+                    <div class="row">
+                        <div class="col-md-8">
+                            <div class="btn-group" role="group">
+                                <button id="zoomInBtn" class="btn btn-sm btn-outline-primary">
+                                    <i class="bi bi-zoom-in"></i> 放大
+                                </button>
+                                <button id="zoomOutBtn" class="btn btn-sm btn-outline-primary">
+                                    <i class="bi bi-zoom-out"></i> 缩小
+                                </button>
+                                <button id="resetZoomBtn" class="btn btn-sm btn-outline-primary">
+                                    <i class="bi bi-arrows-fullscreen"></i> 重置视图
+                                </button>
+                            </div>
+                            <div class="btn-group ms-2" role="group">
+                                <button id="panLeftBtn" class="btn btn-sm btn-outline-secondary">
+                                    <i class="bi bi-arrow-left"></i> 左移
+                                </button>
+                                <button id="panRightBtn" class="btn btn-sm btn-outline-secondary">
+                                    <i class="bi bi-arrow-right"></i> 右移
+                                </button>
+                            </div>
+                        </div>
+                        <div class="col-md-4 text-end">
+                            <span id="annotation-status" class="badge bg-info me-2">准备标注</span>
+                            <button id="toggleModeBtn" class="btn btn-sm btn-primary">
+                                <i class="bi bi-pencil"></i> 标注模式
+                            </button>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="plot-container">
+                    <div id="emgPlot" class="plot mb-3"></div>
+                    <div id="velocityPlot" class="plot mb-3"></div>
+                    <div id="accelerationPlot" class="plot"></div>
+                </div>
+                
+                <!-- 同步分析卡片 -->
+                <div class="card sync-analysis-card">
+                    <div class="card-header">
+                        <i class="bi bi-link"></i> 同步分析
+                    </div>
+                    <div class="card-body">
+                        <p class="card-text">选择一个已标注的片段和通道进行同步分析。</p>
+                        
+                        <div class="row">
+                            <div class="col-md-4">
+                                <label for="segmentSelect" class="form-label">选择片段</label>
+                                <select class="form-select" id="segmentSelect" disabled>
+                                    <option value="">-- 请先标注片段 --</option>
+                                </select>
+                            </div>
+                            <div class="col-md-3">
+                                <label for="emgChannelSelect" class="form-label">EMG通道</label>
+                                <select class="form-select" id="emgChannelSelect">
+                                    <option value="0">加载中...</option>
+                                </select>
+                            </div>
+                            <div class="col-md-3">
+                                <label for="jointChannelSelect" class="form-label">关节通道</label>
+                                <select class="form-select" id="jointChannelSelect">
+                                    <option value="0">加载中...</option>
+                                </select>
+                            </div>
+                            <div class="col-md-2 d-flex align-items-end">
+                                <button id="analyzeBtn" class="btn btn-primary w-100" disabled>分析</button>
+                            </div>
+                        </div>
+                        
+                        <div id="correlationContainer" class="correlation-plot mt-3" style="display: none;">
+                            <div id="correlationPlot"></div>
+                        </div>
+                        
+                        <div id="analysisResult" class="analysis-result mt-3" style="display: none;">
+                            <h6><i class="bi bi-info-circle"></i> 分析结果</h6>
+                            <div id="resultContent"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="col-md-3">
+                <div class="card mb-3">
+                    <div class="card-header">
+                        动作标注控制
+                    </div>
+                    <div class="card-body">
+                        <div class="mb-3">
+                            <label for="segmentLabel" class="form-label">动作标签</label>
+                            <input type="text" class="form-control" id="segmentLabel" placeholder="如：握拳、伸指">
+                        </div>
+                        <div class="mb-3">
+                            <label for="segmentNotes" class="form-label">备注信息</label>
+                            <textarea class="form-control" id="segmentNotes" rows="2" placeholder="添加备注..."></textarea>
+                        </div>
+                        <div class="d-grid gap-2">
+                            <button id="undoBtn" class="btn btn-outline-secondary">
+                                <i class="bi bi-arrow-counterclockwise"></i> 撤销
+                            </button>
+                            <button id="clearBtn" class="btn btn-outline-danger">
+                                <i class="bi bi-trash"></i> 清除所有
+                            </button>
+                            <button id="saveBtn" class="btn btn-success">
+                                <i class="bi bi-save"></i> 保存标注
+                            </button>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="card">
+                    <div class="card-header">
+                        已标注片段
+                    </div>
+                    <div class="card-body p-0">
+                        <div id="segmentsList" class="segment-list">
+                            <div class="p-3 text-center text-muted">
+                                <i class="bi bi-info-circle"></i> 暂无已标注片段
+                            </div>
+                        </div>
+                    </div>
+                    <div class="card-footer">
+                        <div id="stats" class="small">
+                            总片段: 0
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- 帮助模态框 -->
+    <div class="modal fade" id="helpModal" tabindex="-1" aria-labelledby="helpModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="helpModalLabel">使用帮助</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <h5>标注操作指南</h5>
+                    <ul>
+                        <li><strong>标注模式</strong>: 点击图表任意位置标记起始点，再次点击标记结束点</li>
+                        <li><strong>放大/缩小</strong>: 使用图表顶部的缩放按钮调整视图</li>
+                        <li><strong>编辑标注</strong>: 点击右侧已标注列表中的片段可以查看和编辑</li>
+                        <li><strong>保存标注</strong>: 点击"保存标注"按钮将结果保存为JSON文件</li>
+                    </ul>
+                    <h5>同步分析</h5>
+                    <ul>
+                        <li><strong>分析片段</strong>: 标注完成后，选择一个片段进行EMG和关节通道之间的互相关分析</li>
+                        <li><strong>延迟估计</strong>: 分析结果会显示最大相关度处的时间延迟，帮助判断数据同步质量</li>
+                    </ul>
+                    <h5>快捷键</h5>
+                    <ul>
+                        <li><strong>Z</strong>: 撤销上一步操作</li>
+                        <li><strong>Esc</strong>: 取消当前标注</li>
+                        <li><strong>S</strong>: 保存标注</li>
+                    </ul>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-primary" data-bs-dismiss="modal">了解了</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Bootstrap JS -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
+
+    <script>
+        // 全局变量
+        let plotData = {};
+        let segments = [];
+        let currentStart = null;
+        let isAnnotationMode = true;
+        let emgPlot, velocityPlot, accelerationPlot, correlationPlot;
+        let currentZoomRange = null;
+        let previousAnnotations = [];
+        let channelInfo = {
+            emg_channels: [],
+            joint_channels: []
+        };
+
+        // 在文档加载完成后初始化
+        $(document).ready(function() {
+            // 加载数据并初始化图表
+            Promise.all([
+                $.get('/get_data'),
+                $.get('/get_dataset_info'),
+                $.get('/get_previous_annotations'),
+                $.get('/get_channel_info')
+            ]).then(function(results) {
+                plotData = results[0];
+                const datasetInfo = results[1];
+                previousAnnotations = results[2].annotations;
+                channelInfo = results[3];
+                
+                // 更新数据集信息
+                updateDatasetInfo(datasetInfo);
+        
+                // 初始化图表
+                initializePlots();
+                
+                // 初始化通道选择器
+                initializeChannelSelectors();
+                
+                // 加载之前的标注
+                if (previousAnnotations && previousAnnotations.length > 0) {
+                    segments = [...previousAnnotations];
+                    updateSegmentsList();
+                    updateSegmentSelector();
+                    updateStats();
+                    redrawSegmentShapes();
+                }
+                
+                // 初始化事件监听
+                initializeEventListeners();
+                
+                // 隐藏加载动画
+                $('#loading').fadeOut();
+            }).catch(function(error) {
+                console.error("初始化错误:", error);
+                alert("加载数据时出错，请刷新页面重试");
+                $('#loading').fadeOut();
+            });
+        });
+
+        // 初始化图表
+        function initializePlots() {
+            // EMG包络图
+            const emgTrace = {
+                x: plotData.timestamps,
+                y: plotData.emg_envelope,
+                type: 'scatter',
+                mode: 'lines',
+                name: 'EMG包络',
+                line: {
+                    color: 'rgb(31, 119, 180)',
+                    width: 1.5
+                }
+            };
+            
+            const emgLayout = {
+                title: 'EMG包络线',
+                xaxis: { 
+                    title: '时间 (秒)',
+                    zeroline: false
+                },
+                yaxis: { 
+                    title: '幅值',
+                    zeroline: false
+                },
+                shapes: [],
+                margin: { l: 50, r: 20, t: 40, b: 40 },
+                height: 200,
+                dragmode: 'pan',
+                hovermode: 'closest'
+            };
+            
+            const config = {
+                responsive: true,
+                displayModeBar: true,
+                modeBarButtonsToRemove: ['autoScale2d', 'select2d', 'lasso2d'],
+                displaylogo: false
+            };
+            
+            // 初始化图表
+            emgPlot = document.getElementById('emgPlot');
+            velocityPlot = document.getElementById('velocityPlot');
+            accelerationPlot = document.getElementById('accelerationPlot');
+            
+            Plotly.newPlot(emgPlot, [emgTrace], emgLayout, config);
+            
+            // 关节速度图
+            const velocityTrace = {
+                x: plotData.timestamps,
+                y: plotData.joint_velocity,
+                type: 'scatter',
+                mode: 'lines',
+                name: '关节速度',
+                line: {
+                    color: 'rgb(44, 160, 44)',
+                    width: 1.5
+                }
+            };
+            
+            const velocityLayout = {
+                title: '关节速度',
+                xaxis: { 
+                    title: '时间 (秒)',
+                    zeroline: false
+                },
+                yaxis: { 
+                    title: '速度',
+                    zeroline: false
+                },
+                shapes: [],
+                margin: { l: 50, r: 20, t: 40, b: 40 },
+                height: 200,
+                dragmode: 'pan',
+                hovermode: 'closest'
+            };
+            
+            Plotly.newPlot(velocityPlot, [velocityTrace], velocityLayout, config);
+            
+            // 加速度图
+            const accelerationTrace = {
+                x: plotData.timestamps,
+                y: plotData.acceleration,
+                type: 'scatter',
+                mode: 'lines',
+                name: '加速度',
+                line: {
+                    color: 'rgb(214, 39, 40)',
+                    width: 1.5
+                }
+            };
+            
+            
+            const accelerationLayout = {
+                title: '加速度',
+                xaxis: { 
+                    title: '时间 (秒)',
+                    zeroline: false
+                },
+                yaxis: { 
+                    title: '加速度',
+                    zeroline: false
+                },
+                shapes: [],
+                margin: { l: 50, r: 20, t: 40, b: 40 },
+                height: 200,
+                dragmode: 'pan',
+                hovermode: 'closest'
+            };
+            
+            Plotly.newPlot(accelerationPlot, [accelerationTrace], accelerationLayout, config);
+            
+            // 初始化相关性分析图表
+            correlationPlot = document.getElementById('correlationPlot');
+            
+            // 绑定点击事件
+            emgPlot.on('plotly_click', handlePlotClick);
+            velocityPlot.on('plotly_click', handlePlotClick);
+            accelerationPlot.on('plotly_click', handlePlotClick);
+            
+            // 同步缩放
+            emgPlot.on('plotly_relayout', function(eventdata) {
+                syncZoom(eventdata, 'emg');
+            });
+            
+            velocityPlot.on('plotly_relayout', function(eventdata) {
+                syncZoom(eventdata, 'velocity');
+            });
+            
+            accelerationPlot.on('plotly_relayout', function(eventdata) {
+                syncZoom(eventdata, 'acceleration');
+            });
+        }
+        
+        // 初始化通道选择器
+        function initializeChannelSelectors() {
+            const emgSelect = $('#emgChannelSelect');
+            const jointSelect = $('#jointChannelSelect');
+            
+            emgSelect.empty();
+            jointSelect.empty();
+            
+            // 添加EMG通道选项
+            channelInfo.emg_channels.forEach(channel => {
+                emgSelect.append(
+                    `<option value="${channel.id}">${channel.name}</option>`
+                );
+            });
+            
+            // 添加关节通道选项
+            channelInfo.joint_channels.forEach(channel => {
+                jointSelect.append(
+                    `<option value="${channel.id}">${channel.name}</option>`
+                );
+            });
+        }
+        
+        // 更新片段选择器
+        function updateSegmentSelector() {
+            const select = $('#segmentSelect');
+            select.empty();
+            
+            if (segments.length === 0) {
+                select.append(`<option value="">-- 请先标注片段 --</option>`);
+                select.prop('disabled', true);
+                $('#analyzeBtn').prop('disabled', true);
+                return;
+            }
+            
+            select.append(`<option value="">-- 选择片段 --</option>`);
+            
+            // 为每个片段添加一个唯一ID
+            segments.forEach((segment, index) => {
+                if (!segment.id) {
+                    segment.id = 'segment_' + Date.now() + '_' + index;
+                }
+                const duration = segment.duration.toFixed(2);
+                select.append(
+                    `<option value="${segment.id}">${segment.label} (${duration}秒)</option>`
+                );
+            });
+            
+            select.prop('disabled', false);
+            $('#analyzeBtn').prop('disabled', false);
+        }
+        
+        // 同步图表缩放
+        function syncZoom(eventdata, source) {
+            if (!eventdata) return;
+            
+            // 检查是否是缩放或平移事件
+            if (eventdata['xaxis.range[0]'] !== undefined) {
+                const xRange = [eventdata['xaxis.range[0]'], eventdata['xaxis.range[1]']];
+                currentZoomRange = xRange;
+                
+                // 同步其他图表
+                if (source !== 'emg') {
+                    Plotly.relayout(emgPlot, {
+                        'xaxis.range': xRange
+                    });
+                }
+                
+                if (source !== 'velocity') {
+                    Plotly.relayout(velocityPlot, {
+                        'xaxis.range': xRange
+                    });
+                }
+                
+                if (source !== 'acceleration') {
+                    Plotly.relayout(accelerationPlot, {
+                        'xaxis.range': xRange
+                    });
+                }
+            } else if (eventdata['xaxis.autorange'] === true) {
+                // 重置缩放
+                currentZoomRange = null;
+                
+                if (source !== 'emg') {
+                    Plotly.relayout(emgPlot, {
+                        'xaxis.autorange': true
+                    });
+                }
+                
+                if (source !== 'velocity') {
+                    Plotly.relayout(velocityPlot, {
+                        'xaxis.autorange': true
+                    });
+                }
+                
+                if (source !== 'acceleration') {
+                    Plotly.relayout(accelerationPlot, {
+                        'xaxis.autorange': true
+                    });
+                }
+            }
+        }
+        
+        // 处理点击事件
+        function handlePlotClick(event) {
+            if (!isAnnotationMode) return;
+            
+            const x = event.points[0].x;
+            
+            if (currentStart === null) {
+                // 标记起始点
+                currentStart = x;
+                addVerticalLine(x, 'rgba(220, 53, 69, 0.8)');
+                updateAnnotationStatus('点击标注结束点');
+            } else {
+                if (x > currentStart) {
+                    // 标记结束点并添加片段
+                    addVerticalLine(x, 'rgba(25, 135, 84, 0.8)');
+                    
+                    const newSegment = {
+                        id: 'segment_' + Date.now(),
+                        start_time: currentStart,
+                        end_time: x,
+                        duration: x - currentStart,
+                        label: $('#segmentLabel').val() || '未命名动作',
+                        notes: $('#segmentNotes').val() || '',
+                        timestamp: new Date().toISOString()
+                    };
+                    
+                    segments.push(newSegment);
+                    updateSegmentsList();
+                    updateSegmentSelector();
+                    addSegmentShape(newSegment);
+                    
+                    // 重置标注状态
+                    currentStart = null;
+                    updateAnnotationStatus('点击标注起始点');
+                    updateStats();
+                    
+                    // 清空输入框
+                    $('#segmentLabel').val('');
+                    $('#segmentNotes').val('');
+                } else {
+                    // 结束点在开始点之前，显示错误
+                    alert('结束时间必须晚于开始时间');
+                    // 移除当前的开始标记
+                    removeLastVerticalLine();
+                    currentStart = null;
+                    updateAnnotationStatus('点击标注起始点');
+                }
+            }
+        }
+        
+        // 添加垂直线
+        function addVerticalLine(x, color) {
+            const line = {
+                type: 'line',
+                x0: x,
+                x1: x,
+                y0: 0,
+                y1: 1,
+                yref: 'paper',
+                line: {
+                    color: color,
+                    width: 2,
+                    dash: 'dot'
+                }
+            };
+            
+            Plotly.relayout(emgPlot, {
+                shapes: [...(emgPlot.layout.shapes || []), line]
+            });
+            Plotly.relayout(velocityPlot, {
+                shapes: [...(velocityPlot.layout.shapes || []), line]
+            });
+            Plotly.relayout(accelerationPlot, {
+                shapes: [...(accelerationPlot.layout.shapes || []), line]
+            });
+        }
+        
+        // 移除最后一条垂直线
+        function removeLastVerticalLine() {
+            ['emgPlot', 'velocityPlot', 'accelerationPlot'].forEach(plotId => {
+                const plot = document.getElementById(plotId);
+                if (plot.layout.shapes && plot.layout.shapes.length > 0) {
+                    const shapes = [...plot.layout.shapes];
+                    shapes.pop(); // 移除最后一个形状
+                    Plotly.relayout(plot, { shapes: shapes });
+                }
+            });
+        }
+        
+        // 添加段区域
+        function addSegmentShape(segment) {
+            const color = getSegmentColor(segment.label);
+            const shape = {
+                type: 'rect',
+                x0: segment.start_time,
+                x1: segment.end_time,
+                y0: 0,
+                y1: 1,
+                yref: 'paper',
+                fillcolor: color.replace(')', ', 0.2)').replace('rgb', 'rgba'),
+                line: { width: 1, color: color },
+                layer: 'below',
+                name: segment.label
+            };
+            
+            Plotly.relayout(emgPlot, {
+                shapes: [...(emgPlot.layout.shapes || []), shape]
+            });
+            Plotly.relayout(velocityPlot, {
+                shapes: [...(velocityPlot.layout.shapes || []), shape]
+            });
+            Plotly.relayout(accelerationPlot, {
+                shapes: [...(accelerationPlot.layout.shapes || []), shape]
+            });
+        }
+        
+        // 根据标签获取颜色
+        function getSegmentColor(label) {
+            // 预定义的颜色集
+            const colors = [
+                'rgb(31, 119, 180)', 'rgb(255, 127, 14)', 'rgb(44, 160, 44)',
+                'rgb(214, 39, 40)', 'rgb(148, 103, 189)', 'rgb(140, 86, 75)',
+                'rgb(227, 119, 194)', 'rgb(127, 127, 127)', 'rgb(188, 189, 34)',
+                'rgb(23, 190, 207)'
+            ];
+            
+            // 根据标签散列得到一个稳定的索引
+            const hash = label.split('').reduce((acc, char) => {
+                return acc + char.charCodeAt(0);
+            }, 0);
+            
+            return colors[hash % colors.length];
+        }
+        
+        // 更新标注状态
+        function updateAnnotationStatus(text) {
+            const status = $('#annotation-status');
+            status.text(text);
+            
+            if (text.includes('起始点')) {
+                status.removeClass('bg-warning').addClass('bg-info');
+            } else if (text.includes('结束点')) {
+                status.removeClass('bg-info').addClass('bg-warning');
+            }
+        }
+        
+        // 更新统计信息
+        function updateStats() {
+            if (segments.length === 0) {
+                $('#stats').html('总片段: 0');
+                return;
+            }
+            
+            const durations = segments.map(s => s.duration);
+            const avgDuration = durations.reduce((a, b) => a + b) / durations.length;
+            const minDuration = Math.min(...durations);
+            const maxDuration = Math.max(...durations);
+            
+            $('#stats').html(`
+                总片段: ${segments.length}<br>
+                平均时长: ${avgDuration.toFixed(2)}秒<br>
+                最短: ${minDuration.toFixed(2)}秒 | 最长: ${maxDuration.toFixed(2)}秒
+            `);
+        }
+        
+        // 更新片段列表
+        function updateSegmentsList() {
+            const list = $('#segmentsList');
+            list.empty();
+            
+            if (segments.length === 0) {
+                list.html('<div class="p-3 text-center text-muted"><i class="bi bi-info-circle"></i> 暂无已标注片段</div>');
+                return;
+            }
+            
+            // 按时间顺序排序
+            segments.sort((a, b) => a.start_time - b.start_time);
+            
+            segments.forEach((segment, index) => {
+                const color = getSegmentColor(segment.label);
+                const item = $(`
+                    <div class="segment-item" data-index="${index}">
+                        <div>
+                            <div class="fw-bold" style="color: ${color}">${segment.label}</div>
+                            <div class="small text-muted">
+                                ${segment.start_time.toFixed(2)}s - ${segment.end_time.toFixed(2)}s
+                                (${segment.duration.toFixed(2)}s)
+                            </div>
+                        </div>
+                        <div>
+                            <button class="btn btn-sm btn-outline-primary edit-btn" data-index="${index}">
+                                <i class="bi bi-pencil-square"></i>
+                            </button>
+                            <button class="btn btn-sm btn-outline-danger delete-btn" data-index="${index}">
+                                <i class="bi bi-trash"></i>
+                            </button>
+                        </div>
+                    </div>
+                `);
+                
+                list.append(item);
+            });
+            
+            // 绑定编辑和删除按钮事件
+            $('.edit-btn').click(function(e) {
+                e.stopPropagation();
+                const index = $(this).data('index');
+                editSegment(index);
+            });
+            
+            $('.delete-btn').click(function(e) {
+                e.stopPropagation();
+                const index = $(this).data('index');
+                if (confirm('确定要删除这个片段吗？')) {
+                    deleteSegment(index);
+                }
+            });
+            
+            // 点击片段时突出显示
+            $('.segment-item').click(function() {
+                const index = $(this).data('index');
+                highlightSegment(index);
+            });
+        }
+        
+        // 突出显示片段
+        function highlightSegment(index) {
+            const segment = segments[index];
+            
+            // 滚动到视图
+            if (currentZoomRange === null) {
+                // 设置缩放范围为片段前后1秒
+                const padding = 1;
+                const start = Math.max(0, segment.start_time - padding);
+                const end = segment.end_time + padding;
+                
+                Plotly.relayout(emgPlot, {
+                    'xaxis.range': [start, end]
+                });
+            }
+            
+            // 高亮选中项
+            $('.segment-item').removeClass('active');
+            $(`.segment-item[data-index="${index}"]`).addClass('active');
+            
+            // 填充表单
+            $('#segmentLabel').val(segment.label);
+            $('#segmentNotes').val(segment.notes || '');
+            
+            // 如果有ID，在下拉框中选中该片段
+            if (segment.id) {
+                $('#segmentSelect').val(segment.id);
+            }
+        }
+        
+        // 编辑片段
+        function editSegment(index) {
+            const segment = segments[index];
+            
+            // 填充表单
+            $('#segmentLabel').val(segment.label);
+            $('#segmentNotes').val(segment.notes || '');
+            
+            // 高亮选中项
+            $('.segment-item').removeClass('active');
+            $(`.segment-item[data-index="${index}"]`).addClass('active');
+            
+            // 创建编辑状态
+            const saveChanges = function() {
+                segment.label = $('#segmentLabel').val() || '未命名动作';
+                segment.notes = $('#segmentNotes').val() || '';
+                
+                // 更新视图
+                updateSegmentsList();
+                updateSegmentSelector();
+                redrawSegmentShapes();
+                
+                // 解除保存事件
+                $('#saveChangesBtn').off('click');
+                $('#cancelEditBtn').off('click');
+                
+                // 替换按钮
+                $('#editButtonsContainer').replaceWith(`
+                    <button id="saveBtn" class="btn btn-success">
+                        <i class="bi bi-save"></i> 保存标注
+                    </button>
+                `);
+                $('#saveBtn').click(saveSegments);
+            };
+            
+            const cancelEdit = function() {
+                // 清空表单
+                $('#segmentLabel').val('');
+                $('#segmentNotes').val('');
+                
+                // 取消高亮
+                $('.segment-item').removeClass('active');
+                
+                // 解除事件
+                $('#saveChangesBtn').off('click');
+                $('#cancelEditBtn').off('click');
+                
+                // 替换按钮
+                $('#editButtonsContainer').replaceWith(`
+                    <button id="saveBtn" class="btn btn-success">
+                        <i class="bi bi-save"></i> 保存标注
+                    </button>
+                `);
+                $('#saveBtn').click(saveSegments);
+            };
+            
+            // 替换保存按钮为编辑按钮组
+            $('#saveBtn').replaceWith(`
+                <div id="editButtonsContainer" class="d-grid gap-2">
+                    <button id="saveChangesBtn" class="btn btn-primary">
+                        <i class="bi bi-check-lg"></i> 应用更改
+                    </button>
+                    <button id="cancelEditBtn" class="btn btn-outline-secondary">
+                        <i class="bi bi-x-lg"></i> 取消
+                    </button>
+                </div>
+            `);
+            
+            // 绑定事件
+            $('#saveChangesBtn').click(saveChanges);
+            $('#cancelEditBtn').click(cancelEdit);
+        }
+        
+        // 删除片段
+        function deleteSegment(index) {
+            segments.splice(index, 1);
+            updateSegmentsList();
+            updateSegmentSelector();
+            updateStats();
+            redrawSegmentShapes();
+        }
+        
+        // 重绘所有片段
+        function redrawSegmentShapes() {
+            // 清除所有形状
+            ['emgPlot', 'velocityPlot', 'accelerationPlot'].forEach(plotId => {
+                Plotly.relayout(document.getElementById(plotId), { shapes: [] });
+            });
+            
+            // 重新添加所有片段
+            segments.forEach(segment => {
+                addSegmentShape(segment);
+            });
+        }
+        
+        // 撤销上一个标注
+        function undoLastSegment() {
+            if (currentStart !== null) {
+                // 取消当前标注
+                removeLastVerticalLine();
+                currentStart = null;
+                updateAnnotationStatus('点击标注起始点');
+            } else if (segments.length > 0) {
+                // 移除最后一个片段
+                segments.pop();
+                updateSegmentsList();
+                updateSegmentSelector();
+                updateStats();
+                redrawSegmentShapes();
+            }
+        }
+        
+        // 清除所有标注
+        function clearAll() {
+            if (segments.length === 0 && currentStart === null) return;
+            
+            if (confirm('确定要清除所有标注吗？此操作不可撤销。')) {
+                segments = [];
+                currentStart = null;
+                updateAnnotationStatus('点击标注起始点');
+                updateSegmentsList();
+                updateSegmentSelector();
+                updateStats();
+                redrawSegmentShapes();
+                
+                // 隐藏分析结果
+                $('#correlationContainer').hide();
+                $('#analysisResult').hide();
+            }
+        }
+        
+        // 保存标注
+        function saveSegments() {
+            if (segments.length === 0) {
+                alert('没有标注数据可保存！');
+                return;
+            }
+            
+            // 添加元数据
+            const data = {
+                segments: segments,
+                total_segments: segments.length,
+                timestamp: new Date().toISOString(),
+                metadata: {
+                    avg_duration: segments.reduce((acc, seg) => acc + seg.duration, 0) / segments.length,
+                    total_duration: segments.reduce((acc, seg) => acc + seg.duration, 0)
+                }
+            };
+            
+            $.ajax({
+                url: '/save_segments',
+                type: 'POST',
+                contentType: 'application/json',
+                data: JSON.stringify(data),
+                success: function(response) {
+                    alert(`标注结果已保存到: ${response.filename}`);
+                },
+                error: function(jqXHR, textStatus, errorThrown) {
+                    console.error("保存失败:", textStatus, errorThrown);
+                    alert("保存标注失败，请稍后重试");
+                }
+            });
+        }
+        
+        // 更新数据集信息
+        function updateDatasetInfo(info) {
+            $('#dataset-info').html(`
+                数据集: ${info.file_name} | 
+                通道数: ${info.channels} | 
+                时长: ${info.duration.toFixed(2)}秒 | 
+                采样率: ${info.sample_rate}Hz
+            `);
+        }
+        
+        // 执行同步分析
+        function performSyncAnalysis() {
+            const segmentId = $('#segmentSelect').val();
+            if (!segmentId) {
+                alert('请先选择一个片段');
+                return;
+            }
+            
+            const segment = segments.find(s => s.id === segmentId);
+            if (!segment) {
+                alert('找不到选定的片段');
+                return;
+            }
+            
+            const emgChannel = parseInt($('#emgChannelSelect').val());
+            const jointChannel = parseInt($('#jointChannelSelect').val());
+            
+            // 显示加载动画
+            $('#loading').fadeIn();
+            
+            // 发送分析请求
+            $.ajax({
+                url: '/analyze_segment',
+                type: 'POST',
+                contentType: 'application/json',
+                data: JSON.stringify({
+                    segment: segment,
+                    emg_channel: emgChannel,
+                    joint_channel: jointChannel
+                }),
+                success: function(result) {
+                    displayCorrelationResults(result);
+                    $('#loading').fadeOut();
+                },
+                error: function(jqXHR, textStatus, errorThrown) {
+                    console.error("分析失败:", textStatus, errorThrown);
+                    alert("分析失败，请稍后重试");
+                    $('#loading').fadeOut();
+                }
+            });
+        }
+        
+        // 显示相关性分析结果
+        function displayCorrelationResults(result) {
+            // 显示容器
+            $('#correlationContainer').show();
+            $('#analysisResult').show();
+            
+            // 绘制互相关图
+            const correlationTrace = {
+                x: result.corr_data.x,
+                y: result.corr_data.y,
+                type: 'scatter',
+                mode: 'lines',
+                name: '互相关函数',
+                line: {
+                    color: 'rgb(31, 119, 180)',
+                    width: 2
+                }
+            };
+            
+            const layout = {
+                title: 'EMG-关节角度互相关分析',
+                xaxis: { 
+                    title: '时间延迟 (秒)',
+                    zeroline: true
+                },
+                yaxis: { 
+                    title: '归一化相关度',
+                    zeroline: true
+                },
+                shapes: [{
+                    type: 'line',
+                    x0: result.peak_time,
+                    x1: result.peak_time,
+                    y0: 0,
+                    y1: 1,
+                    yref: 'paper',
+                    line: {
+                        color: 'red',
+                        width: 2,
+                        dash: 'dot'
+                    }
+                }],
+                annotations: [{
+                    x: result.peak_time,
+                    y: 1,
+                    xref: 'x',
+                    yref: 'paper',
+                    text: `峰值延迟: ${result.peak_time.toFixed(3)}秒`,
+                    showarrow: true,
+                    arrowhead: 2,
+                    ax: 0,
+                    ay: -40
+                }],
+                margin: { l: 50, r: 20, t: 40, b: 40 },
+                height: 300
+            };
+            
+            const config = {
+                responsive: true,
+                displayModeBar: true,
+                modeBarButtonsToRemove: ['select2d', 'lasso2d'],
+                displaylogo: false
+            };
+            
+            Plotly.newPlot(correlationPlot, [correlationTrace], layout, config);
+            
+            // 显示分析结果
+            const emgChannelName = $('#emgChannelSelect option:selected').text();
+            const jointChannelName = $('#jointChannelSelect option:selected').text();
+            
+            $('#resultContent').html(`
+                <table class="table table-sm">
+                    <tr>
+                        <td><b>分析片段:</b></td>
+                        <td>${$('#segmentSelect option:selected').text()}</td>
+                    </tr>
+                    <tr>
+                        <td><b>片段时长:</b></td>
+                        <td>${result.segment_duration.toFixed(2)}秒</td>
+                    </tr>
+                    <tr>
+                        <td><b>EMG通道:</b></td>
+                        <td>${emgChannelName}</td>
+                    </tr>
+                    <tr>
+                        <td><b>关节通道:</b></td>
+                        <td>${jointChannelName}</td>
+                    </tr>
+                    <tr>
+                        <td><b>峰值延迟:</b></td>
+                        <td>${result.peak_time.toFixed(3)}秒</td>
+                    </tr>
+                    <tr>
+                        <td><b>延迟样本数:</b></td>
+                        <td>${result.peak_lag}个样本</td>
+                    </tr>
+                </table>
+                <div class="small text-muted mt-2">
+                    <i class="bi bi-info-circle"></i> 
+                    正延迟值表示EMG信号先于关节角度变化，负延迟值表示关节角度变化先于EMG信号。
+                </div>
+            `);
+        }
+        
+        // 初始化事件监听
+        function initializeEventListeners() {
+            // 缩放控制
+            $('#zoomInBtn').click(function() {
+                // 如果还没有缩放范围，先设置一个初始范围
+                if (!currentZoomRange) {
+                    // 获取数据时间范围的中间点和总时长
+                    const timestamps = plotData.timestamps;
+                    const minTime = timestamps[0];
+                    const maxTime = timestamps[timestamps.length - 1];
+                    const center = (minTime + maxTime) / 2;
+                    const totalDuration = maxTime - minTime;
+                    
+                    // 使用总时长的一半作为初始缩放
+                    const width = totalDuration / 2;
+                    const newRange = [center - width/2, center + width/2];
+                    currentZoomRange = newRange;
+                    
+                    // 应用初始缩放
+                    Plotly.relayout(emgPlot, {
+                        'xaxis.range': newRange
+                    });
+                    Plotly.relayout(velocityPlot, {
+                        'xaxis.range': newRange
+                    });
+                    Plotly.relayout(accelerationPlot, {
+                        'xaxis.range': newRange
+                    });
+                    return;
+                }
+                
+                // 正常放大逻辑
+                const center = (currentZoomRange[0] + currentZoomRange[1]) / 2;
+                const width = (currentZoomRange[1] - currentZoomRange[0]) * 0.7;
+                const newRange = [center - width/2, center + width/2];
+                
+                // 同步应用到所有图表
+                Plotly.relayout(emgPlot, {
+                    'xaxis.range': newRange
+                });
+                Plotly.relayout(velocityPlot, {
+                    'xaxis.range': newRange
+                });
+                Plotly.relayout(accelerationPlot, {
+                    'xaxis.range': newRange
+                });
+                
+                // 更新当前缩放范围
+                currentZoomRange = newRange;
+            });
+            
+            $('#zoomOutBtn').click(function() {
+                // 如果还没有缩放范围，先设置一个初始范围
+                if (!currentZoomRange) {
+                    // 首次缩放，直接重置到全局视图
+                    Plotly.relayout(emgPlot, {
+                        'xaxis.autorange': true
+                    });
+                    Plotly.relayout(velocityPlot, {
+                        'xaxis.autorange': true
+                    });
+                    Plotly.relayout(accelerationPlot, {
+                        'xaxis.autorange': true
+                    });
+                    return;
+                }
+                
+                // 正常缩小逻辑
+                const center = (currentZoomRange[0] + currentZoomRange[1]) / 2;
+                const width = (currentZoomRange[1] - currentZoomRange[0]) * 1.5;
+                const newRange = [center - width/2, center + width/2];
+                
+                // 同步应用到所有图表
+                Plotly.relayout(emgPlot, {
+                    'xaxis.range': newRange
+                });
+                Plotly.relayout(velocityPlot, {
+                    'xaxis.range': newRange
+                });
+                Plotly.relayout(accelerationPlot, {
+                    'xaxis.range': newRange
+                });
+                
+                // 更新当前缩放范围
+                currentZoomRange = newRange;
+            });
+            
+            $('#resetZoomBtn').click(function() {
+                // 重置缩放范围变量
+                currentZoomRange = null;
+                
+                // 同步重置所有图表
+                Plotly.relayout(emgPlot, {
+                    'xaxis.autorange': true
+                });
+                Plotly.relayout(velocityPlot, {
+                    'xaxis.autorange': true
+                });
+                Plotly.relayout(accelerationPlot, {
+                    'xaxis.autorange': true
+                });
+            });
+            
+            // 平移控制
+            $('#panLeftBtn').click(function() {
+                // 如果还没有缩放范围，先设置一个初始范围
+                if (!currentZoomRange) {
+                    $('#zoomInBtn').click(); // 先执行一次缩放
+                    return;
+                }
+                
+                const width = currentZoomRange[1] - currentZoomRange[0];
+                const offset = width * 0.3;
+                const newRange = [currentZoomRange[0] - offset, currentZoomRange[1] - offset];
+                
+                // 同步应用到所有图表
+                Plotly.relayout(emgPlot, {
+                    'xaxis.range': newRange
+                });
+                Plotly.relayout(velocityPlot, {
+                    'xaxis.range': newRange
+                });
+                Plotly.relayout(accelerationPlot, {
+                    'xaxis.range': newRange
+                });
+                
+                // 更新当前缩放范围
+                currentZoomRange = newRange;
+            });
+            
+            $('#panRightBtn').click(function() {
+                // 如果还没有缩放范围，先设置一个初始范围
+                if (!currentZoomRange) {
+                    $('#zoomInBtn').click(); // 先执行一次缩放
+                    return;
+                }
+                
+                const width = currentZoomRange[1] - currentZoomRange[0];
+                const offset = width * 0.3;
+                const newRange = [currentZoomRange[0] + offset, currentZoomRange[1] + offset];
+                
+                // 同步应用到所有图表
+                Plotly.relayout(emgPlot, {
+                    'xaxis.range': newRange
+                });
+                Plotly.relayout(velocityPlot, {
+                    'xaxis.range': newRange
+                });
+                Plotly.relayout(accelerationPlot, {
+                    'xaxis.range': newRange
+                });
+                
+                // 更新当前缩放范围
+                currentZoomRange = newRange;
+            });
+            
+            // 标注模式开关
+            $('#toggleModeBtn').click(function() {
+                isAnnotationMode = !isAnnotationMode;
+                if (isAnnotationMode) {
+                    $(this).html('<i class="bi bi-pencil"></i> 标注模式');
+                    $(this).removeClass('btn-secondary').addClass('btn-primary');
+                    updateAnnotationStatus('点击标注起始点');
+                } else {
+                    $(this).html('<i class="bi bi-eye"></i> 浏览模式');
+                    $(this).removeClass('btn-primary').addClass('btn-secondary');
+                    updateAnnotationStatus('浏览模式');
+                }
+            });
+            
+            // 按钮事件绑定
+            $('#undoBtn').click(undoLastSegment);
+            $('#clearBtn').click(clearAll);
+            $('#saveBtn').click(saveSegments);
+            $('#analyzeBtn').click(performSyncAnalysis);
+            
+            // 片段选择变化事件
+            $('#segmentSelect').change(function() {
+                const segmentId = $(this).val();
+                if (segmentId) {
+                    // 找到对应的片段索引并高亮显示
+                    const index = segments.findIndex(s => s.id === segmentId);
+                    if (index >= 0) {
+                        highlightSegment(index);
+                    }
+                }
+            });
+            
+            // 键盘快捷键
+            $(document).keydown(function(e) {
+                // Z键：撤销
+                if (e.key === 'z' || e.key === 'Z') {
+                    undoLastSegment();
+                }
+                
+                // Esc键：取消当前标注
+                if (e.key === 'Escape' && currentStart !== null) {
+                    removeLastVerticalLine();
+                    currentStart = null;
+                    updateAnnotationStatus('点击标注起始点');
+                }
+                
+                // S键：保存
+                if (e.key === 's' || e.key === 'S') {
+                    if (segments.length > 0) {
+                        saveSegments();
+                    }
+                }
+            });
+        }
+    </script>
+</body>
+</html>

@@ -11,7 +11,11 @@ from scipy.stats import pearsonr
 import matplotlib.pyplot as plt
 import seaborn as sns
 from sklearn.preprocessing import StandardScaler
+import sys
+from pathlib import Path
 
+project_root = Path(__file__).parent.parent
+sys.path.append(str(project_root))
 # matplotlib.rcParams['font.family'] = 'SimSun'
 matplotlib.rcParams['font.family'] = 'SimHei'
 plt.rcParams['axes.unicode_minus'] = False  # 解决负号显示为方框的问题
@@ -39,10 +43,10 @@ class DataSynchronizer:
         start_time = max(self.emg_timestamps[0], self.joint_timestamps[0])
         end_time = min(self.emg_timestamps[-1], self.joint_timestamps[-1])
         
-        # 打印时间范围信息
-        print(f"EMG数据时间范围: {self.emg_timestamps[0]} 到 {self.emg_timestamps[-1]}")
-        print(f"关节数据时间范围: {self.joint_timestamps[0]} 到 {self.joint_timestamps[-1]}")
-        print(f"共同时间范围: {start_time} 到 {end_time}")
+        # # 打印时间范围信息
+        # print(f"EMG数据时间范围: {self.emg_timestamps[0]} 到 {self.emg_timestamps[-1]}")
+        # print(f"关节数据时间范围: {self.joint_timestamps[0]} 到 {self.joint_timestamps[-1]}")
+        # print(f"共同时间范围: {start_time} 到 {end_time}")
         
         return start_time, end_time
         
@@ -161,6 +165,8 @@ class DataSynchronizer:
             print(f"  动作区间平均幅度: {avg_action_amplitude:.6f}")
             print(f"  休息区间平均幅度: {avg_rest_amplitude:.6f}")
             print(f"  动作/休息幅度比: {avg_action_amplitude / avg_rest_amplitude:.2f}")
+
+    
 
 
 class DataVisualizer:
@@ -293,7 +299,7 @@ class DataVisualizer:
         return f(self.emg_timestamps)
     
 
-    def annotate_action_intervals(self, ax, timestamps, action_duration=5, rest_duration=5):
+    def annotate_action_intervals(self, ax, timestamps, action_duration=4, rest_duration=4):
             """在指定轴上标注动作和休息区间"""
             cycle_duration = action_duration + rest_duration  # 总周期（9秒）
 
@@ -704,12 +710,13 @@ class DataVisualizer:
             'max_correlation_indices': max_corr_idx,
             'segment_correlations': segment_correlations
         }
+    
 
 
 # 使用示例
 def main():
     # 初始化同步器
-    synchronizer = DataSynchronizer(r'E:\multimodel-acquisition\data\20250319_212126_8_right_6 (1).h5')
+    synchronizer = DataSynchronizer(r'E:\multimodel-acquisition\data\20250326_210703_1_right_6.h5')
     
     # 加载数据
     synchronizer.load_data()
@@ -726,167 +733,24 @@ def main():
     visualizer = DataVisualizer(synchronizer.emg_data, synchronizer.emg_timestamps, 
                                 synchronizer.joint_data, synchronizer.joint_timestamps)
 
-    visualizer.analyze_multimodal_data(synced_joint_data, visualizer.emg_data)        
+    # visualizer.analyze_multimodal_data(synced_joint_data, visualizer.emg_data)        
     # visualizer.plot_interpolated_results()
     
 
     
     # # # 可视化结果
-    # visualizer.visualize_sync_results(synced_joint_data)  # 可视化同步结果
-    # visualizer.visualize_emg_data()                       # 可视化肌电数据
-    # visualizer.visualize_all_fingers(synced_joint_data)   # 可视化所有手指的关节数据
+    visualizer.visualize_sync_results(synced_joint_data)  # 可视化同步结果
+    visualizer.visualize_emg_data()                       # 可视化肌电数据
+    visualizer.visualize_all_fingers(synced_joint_data)   # 可视化所有手指的关节数据
 
     # visualizer.evaluate_joint_coordination(synced_joint_data)
     # visualizer.evaluate_emg_coordination(visualizer.emg_data)
 
-    # # 验证同步质量
-    # synchronizer.validate_sync_quality(synced_joint_data)
+    # 验证同步质量
+    synchronizer.validate_sync_quality(synced_joint_data)
 
 
 if __name__ == '__main__':
     main()
 
 
-
-
-
-
-# def detect_action_boundaries(self):
-#     """检测动作的精确起始和结束时间"""
-#     def calculate_signal_energy(data, window_size=100):
-#         """计算信号能量"""
-#         # 使用滑动窗口计算能量
-#         energy = np.zeros(len(data))
-#         for i in range(len(data)):
-#             start = max(0, i - window_size//2)
-#             end = min(len(data), i + window_size//2)
-#             energy[i] = np.mean(np.square(data[start:end]))
-#         return energy
-
-#     def find_action_boundaries(energy, threshold_factor=2):
-#         """找出动作的起始和结束点"""
-#         # 计算基线能量（休息状态）
-#         baseline = np.percentile(energy, 25)  # 使用25%分位数作为基线
-#         threshold = baseline * threshold_factor  # 设置阈值
-
-#         # 初始化结果列表
-#         action_segments = []
-#         in_action = False
-#         action_start = 0
-
-#         # 检测动作边界
-#         for i in range(len(energy)):
-#             if not in_action and energy[i] > threshold:
-#                 # 动作开始
-#                 action_start = i
-#                 in_action = True
-#             elif in_action and energy[i] < threshold:
-#                 # 动作结束
-#                 if i - action_start > 100:  # 最小动作持续时间（可调整）
-#                     action_segments.append((action_start, i))
-#                 in_action = False
-
-#         return action_segments
-
-#     # 对每个EMG通道进行分析
-#     all_segments = []
-#     for channel in range(self.emg_data.shape[1]):
-#         # 计算信号能量
-#         energy = calculate_signal_energy(self.emg_data[:, channel])
-#         # 检测动作边界
-#         segments = find_action_boundaries(energy)
-#         all_segments.append(segments)
-
-#     # 合并所有通道的结果
-#     merged_segments = self.merge_segments(all_segments)
-    
-#     # 转换为时间戳
-#     time_segments = [(self.emg_timestamps[start], self.emg_timestamps[end]) 
-#                     for start, end in merged_segments]
-    
-#     return time_segments
-
-# def merge_segments(self, all_segments):
-#     """合并多个通道检测到的动作段"""
-#     # 将所有段落展平并排序
-#     all_points = []
-#     for channel_segments in all_segments:
-#         for start, end in channel_segments:
-#             all_points.append((start, 'start'))
-#             all_points.append((end, 'end'))
-    
-#     all_points.sort(key=lambda x: x[0])
-    
-#     # 合并重叠的段落
-#     merged = []
-#     active_count = 0
-#     current_start = None
-    
-#     for point, point_type in all_points:
-#         if point_type == 'start':
-#             active_count += 1
-#             if active_count == 1:
-#                 current_start = point
-#         else:  # point_type == 'end'
-#             active_count -= 1
-#             if active_count == 0:
-#                 merged.append((current_start, point))
-    
-#     return merged
-
-# def visualize_action_detection(self):
-#     """可视化动作检测结果"""
-#     # 获取动作段
-#     action_segments = self.detect_action_boundaries()
-    
-#     # 创建多子图
-#     fig, (ax1, ax2) = plt.subplots(2, 1, figsize=(12, 8), sharex=True)
-    
-#     # 绘制EMG信号
-#     for i in range(self.emg_data.shape[1]):
-#         offset_data = self.emg_data[:, i] + (i * np.max(np.abs(self.emg_data)))
-#         ax1.plot(self.emg_timestamps, offset_data, label=f'CH{i+1}')
-#     ax1.set_title('EMG信号与动作检测')
-#     ax1.set_ylabel('EMG (mV)')
-#     ax1.legend()
-    
-#     # 绘制关节角度数据
-#     for i in range(min(4, self.joint_data.shape[1])):  # 显示前4个关节
-#         ax2.plot(self.joint_timestamps, self.joint_data[:, i], 
-#                 label=f'关节{i+1}')
-#     ax2.set_title('关节角度数据')
-#     ax2.set_xlabel('时间 (s)')
-#     ax2.set_ylabel('角度 (度)')
-#     ax2.legend()
-    
-#     # 在两个子图中标注动作段
-#     for start, end in action_segments:
-#         ax1.axvspan(start, end, color='gray', alpha=0.2)
-#         ax2.axvspan(start, end, color='gray', alpha=0.2)
-    
-#     plt.tight_layout()
-#     plt.show()
-    
-#     return action_segments
-
-# def extract_action_data(self, action_segments):
-#     """提取每个动作段的数据"""
-#     action_data = []
-    
-#     for start_time, end_time in action_segments:
-#         # 提取EMG数据
-#         emg_mask = (self.emg_timestamps >= start_time) & (self.emg_timestamps <= end_time)
-#         emg_segment = self.emg_data[emg_mask]
-        
-#         # 提取关节角度数据
-#         joint_mask = (self.joint_timestamps >= start_time) & (self.joint_timestamps <= end_time)
-#         joint_segment = self.joint_data[joint_mask]
-        
-#         action_data.append({
-#             'start_time': start_time,
-#             'end_time': end_time,
-#             'emg_data': emg_segment,
-#             'joint_data': joint_segment
-#         })
-    
-#     return action_data
