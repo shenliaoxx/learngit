@@ -6,21 +6,12 @@ from functools import partial
 class HandAngleCalculator:
     def __init__(self):
         self._init_data_structures()
-        self._init_configurations()
         self._init_finger_chains()
         self._init_base_angles()
         self._init_kalman_params()
 
     def _init_data_structures(self):
-        self.raw_angles = {}
-        self.filtered_angles = {}
-        self.angle_history = {}
         self.kalman_filters = {}
-
-    def _init_configurations(self):
-        self.history_config = {'static': 8, 'slow': 5, 'fast': 3}
-        self.motion_state = 'slow'
-        self.history_length = self.history_config['slow']
 
     def _init_finger_chains(self):
         self.finger_chains = {
@@ -34,7 +25,7 @@ class HandAngleCalculator:
     def _init_base_angles(self):
         self.base_angles = {
             'thumb_cmc_flexion': 15, 'thumb_mcp_flexion': 10, 'thumb_ip_flexion': 0,
-            'thumb_mcp_abduction': 20, 'index_mcp_flexion': 15, 'middle_mcp_flexion': 8,
+            'thumb_mcp_abduction': 15, 'index_mcp_flexion': 15, 'middle_mcp_flexion': 8,
             'ring_mcp_flexion': 1, 'pinky_mcp_flexion': 8, 'pinky_mcp_abduction': 7
         }
 
@@ -93,65 +84,14 @@ class HandAngleCalculator:
         
         return float(kf['x'])
 
-    def detect_motion_state(self, angle_name, current_value):
-        if angle_name not in self.raw_angles:
-            self.raw_angles[angle_name] = []
-        
-        history = self.raw_angles[angle_name]
-        history.append(float(current_value))
-        
-        if len(history) > 20:
-            history.pop(0)
-        
-        if len(history) < 3:
-            return 'slow'
-        
-        velocities = np.diff(history)
-        accelerations = np.diff(velocities)
-        mean_velocity = np.mean(np.abs(velocities))
-        mean_acceleration = np.mean(np.abs(accelerations)) if len(accelerations) > 0 else 0
-        
-        if mean_velocity < 1.0 and mean_acceleration < 0.5:
-            return 'static'
-        return 'fast' if mean_velocity >= 5.0 or mean_acceleration >= 2.0 else 'slow'
-
-    def smooth_angle(self, angle_name, value):
-        try:
-            max_history = 100
-            for store in [self.raw_angles, self.filtered_angles, self.angle_history]:
-                if angle_name not in store:
-                    store[angle_name] = []
-            
-            self.raw_angles[angle_name].append(float(value))
-            if len(self.raw_angles[angle_name]) > max_history:
-                self.raw_angles[angle_name].pop(0)
-            
-            motion_state = self.detect_motion_state(angle_name, value)
-            history_length = self.history_config[motion_state]
-            
-            history = self.angle_history[angle_name]
-            history.append(value)
-            while len(history) > history_length:
-                history.pop(0)
-            
-            weights = np.exp(np.linspace(
-                -2 if motion_state == 'fast' else -1 if motion_state == 'slow' else -0.5,
-                0, len(history)))
-            weights /= weights.sum()
-            
-            smoothed = np.average(history, weights=weights)
-            filtered = self.apply_kalman_filter(angle_name, smoothed)
-            
-            self.filtered_angles[angle_name].append(float(filtered))
-            if len(self.filtered_angles[angle_name]) > max_history:
-                self.filtered_angles[angle_name].pop(0)
-            
-            return round(filtered, 2)
-        except Exception:
-            return value
 
     def process_angle(self, angle_name, value, min_val, max_val):
-        return self.smooth_angle(angle_name, np.clip(value, min_val, max_val))
+        """移除平滑处理，只保留卡尔曼滤波"""
+        # 限制角度范围
+        clipped_value = np.clip(value, min_val, max_val)
+        # 应用卡尔曼滤波
+        filtered_value = self.apply_kalman_filter(angle_name, clipped_value)
+        return round(filtered_value, 2)
 
     def create_hand_coordinate_system(self, landmarks):
         points = np.array([[lm.x, lm.y, lm.z] for lm in landmarks.landmark])
@@ -198,30 +138,82 @@ class HandAngleCalculator:
             
         return max(0.0, angle)
 
+    # def calculate_abduction_angle(self, vector, rotation_matrix, finger_name, hand_landmarks, base_angle=0):
+    #     points = np.array([[lm.x, lm.y, lm.z] for lm in hand_landmarks.landmark])
+    #     vector_norm = vector / np.linalg.norm(vector)
+        
+    #     # 将向量转换到局部坐标系
+    #     vector_local = rotation_matrix.T @ vector_norm
+    #     z_axis = rotation_matrix[:, 2]
+        
+    #     # 将向量投影到手掌平面
+    #     vector_proj = vector_local - np.dot(vector_local, z_axis) * z_axis
+        
+    #     if np.linalg.norm(vector_proj) < 0.05:
+    #         return 0  # 如果投影过小，返回0
+        
+    #     vector_proj = vector_proj / np.linalg.norm(vector_proj)
+        
+    #     # 选择参考向量
+    #     if finger_name == 'thumb':
+    #         reference_vector = points[6] - points[5]  # 拇指参考
+    #     elif finger_name == 'pinky':
+    #         reference_vector = points[14] - points[13]  # 小指参考
+    #     elif finger_name == 'index':
+    #         middle_vector = points[10] - points[9]
+    #         middle_local = rotation_matrix.T @ (middle_vector / np.linalg.norm(middle_vector))
+    #         reference_local = 0.8 * rotation_matrix[:, 1] + 0.2 * middle_local
+    #         reference_vector = reference_local / np.linalg.norm(reference_local)  # 食指参考
+    #     else:
+    #         reference_vector = rotation_matrix[:, 1]  # 其他手指参考
+        
+    #     # 计算参考向量的投影
+    #     ref_proj = reference_vector - np.dot(reference_vector, z_axis) * z_axis
+    #     ref_norm = np.linalg.norm(ref_proj)
+        
+    #     if ref_norm < 0.05:
+    #         ref_proj = rotation_matrix[:, 0] - np.dot(rotation_matrix[:, 0], z_axis) * z_axis
+    #         ref_proj = ref_proj / np.linalg.norm(ref_proj)
+    #     else:
+    #         ref_proj = ref_proj / ref_norm
+        
+    #     # 计算夹角
+    #     dot_product = np.dot(vector_proj, ref_proj)
+    #     angle = np.degrees(np.arccos(np.clip(dot_product, -1.0, 1.0)))
+    #     angle = min(angle, 180 - angle)  # 确保角度在0到180度之间
+    #     return max(0.0, angle - base_angle)
+
+
     def calculate_abduction_angle(self, vector, rotation_matrix, finger_name, hand_landmarks, base_angle=0):
         points = np.array([[lm.x, lm.y, lm.z] for lm in hand_landmarks.landmark])
         vector_norm = vector / np.linalg.norm(vector)
+        
+        # 将向量转换到局部坐标系
         vector_local = rotation_matrix.T @ vector_norm
         z_axis = rotation_matrix[:, 2]
+        
+        # 将向量投影到手掌平面
         vector_proj = vector_local - np.dot(vector_local, z_axis) * z_axis
         
         if np.linalg.norm(vector_proj) < 0.05:
-            return 0
-            
+            return 0  # 如果投影过小，返回0
+        
         vector_proj = vector_proj / np.linalg.norm(vector_proj)
         
+        # 选择参考向量
         if finger_name == 'thumb':
-            reference_vector = points[6] - points[5]
+            reference_vector = points[6] - points[5]  # 拇指参考
         elif finger_name == 'pinky':
-            reference_vector = points[14] - points[13]
+            reference_vector = points[14] - points[13]  # 小指参考
         elif finger_name == 'index':
             middle_vector = points[10] - points[9]
             middle_local = rotation_matrix.T @ (middle_vector / np.linalg.norm(middle_vector))
             reference_local = 0.8 * rotation_matrix[:, 1] + 0.2 * middle_local
-            reference_vector = reference_local / np.linalg.norm(reference_local)
+            reference_vector = reference_local / np.linalg.norm(reference_local)  # 食指参考
         else:
-            reference_vector = rotation_matrix[:, 1]
+            reference_vector = rotation_matrix[:, 1]  # 其他手指参考
         
+        # 计算参考向量的投影
         ref_proj = reference_vector - np.dot(reference_vector, z_axis) * z_axis
         ref_norm = np.linalg.norm(ref_proj)
         
@@ -231,11 +223,29 @@ class HandAngleCalculator:
         else:
             ref_proj = ref_proj / ref_norm
         
+        # 计算夹角
         dot_product = np.dot(vector_proj, ref_proj)
         angle = np.degrees(np.arccos(np.clip(dot_product, -1.0, 1.0)))
-        angle = min(angle, 180-angle)
+        angle = min(angle, 180 - angle)  # 确保角度在0到180度之间
+
+        # 计算角度符号
+        cross_product = np.cross(ref_proj, vector_proj)
+        sign = np.sign(np.dot(cross_product, z_axis))  # 根据z轴确定角度的正负
+
+        # 应用符号并减去基准角度
+        signed_angle = angle * sign - base_angle
         
-        return max(0.0, angle - base_angle)
+        # 根据手指类型限制角度范围
+        if finger_name == 'thumb':
+            return np.clip(signed_angle, -45, 45)
+        elif finger_name == 'index':
+            return np.clip(signed_angle, -20, 20)
+        elif finger_name == 'middle':
+            return np.clip(signed_angle, -15, 15)
+        elif finger_name == 'ring':
+            return np.clip(signed_angle, -10, 10)
+        else:  # pinky
+            return np.clip(signed_angle, -15, 15)
 
     def calculate_thumb_angles(self, hand_landmarks, chain, origin, rotation_matrix):
         points = np.array([[lm.x, lm.y, lm.z] for lm in hand_landmarks.landmark])
@@ -280,8 +290,9 @@ class HandAngleCalculator:
         }
         
         return {k: self.process_angle(k, v, *self._get_angle_limits(k)) for k, v in angles.items()}
-
+    
     def _get_angle_limits(self, angle_name):
+        """更新角度限制范围，为外展角度添加负值范围"""
         if 'thumb' in angle_name:
             if 'cmc_flexion' in angle_name: return (0, 50)
             if 'mcp_flexion' in angle_name: return (0, 80)
@@ -291,8 +302,22 @@ class HandAngleCalculator:
             if 'mcp_flexion' in angle_name: return (0, 90)
             if 'pip_flexion' in angle_name: return (0, 100)
             if 'dip_flexion' in angle_name: return (0, 90)
-            if 'abduction' in angle_name: return (0, 40)
+            if 'abduction' in angle_name: return(0, 40)
         return (0, 180)
+
+    # def _get_angle_limits(self, angle_name):
+    #     """更新角度限制范围，为外展角度添加负值范围"""
+    #     if 'thumb' in angle_name:
+    #         if 'cmc_flexion' in angle_name: return (0, 50)
+    #         if 'mcp_flexion' in angle_name: return (0, 80)
+    #         if 'ip_flexion' in angle_name: return (0, 90)
+    #         if 'abduction' in angle_name: return (0, 70)
+    #     else:
+    #         if 'mcp_flexion' in angle_name: return (0, 90)
+    #         if 'pip_flexion' in angle_name: return (0, 100)
+    #         if 'dip_flexion' in angle_name: return (0, 90)
+    #         if 'abduction' in angle_name: return(0, 40)
+    #     return (0, 180)
 
     def calculate_joint_angles(self, hand_landmarks):
         try:

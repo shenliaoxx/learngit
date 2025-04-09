@@ -11,8 +11,10 @@ class RealSenseCollector:
         # 初始化RealSense
         self.pipeline = rs.pipeline()
         self.config = rs.config()
+
+        #启用深度流
         self.config.enable_stream(rs.stream.color, 640, 480, rs.format.bgr8, 30)
-    
+
         self._init_hand_tracking()
         
         # 初始化角度计算器
