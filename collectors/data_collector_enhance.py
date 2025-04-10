@@ -215,12 +215,12 @@ class DataCollector:
                 self.hand_buffer['timestamps'].append(timestamp)
                 angles_data = [
                     data.get("thumb_cmc_flexion", 0.0),
+                    data.get("thumb_cmc_abduction", 0.0),
                     data.get("thumb_mcp_flexion", 0.0),
-                    data.get("thumb_mcp_abduction", 0.0),
                     data.get("thumb_ip_flexion", 0.0),
                     *[data.get(f"{finger}_{joint}", 0.0) 
                       for finger in ['index', 'middle', 'ring', 'pinky'] 
-                      for joint in ['mcp_flexion', 'mcp_abduction', 'pip_flexion', 'dip_flexion']]
+                      for joint in ['mcp_abduction', 'mcp_flexion', 'pip_flexion', 'dip_flexion']]
                 ]
                 self.hand_buffer['joint_angles'].append(angles_data)
 
@@ -292,10 +292,10 @@ class DataCollector:
                 
                 # 关节角度标签
                 angle_labels = [
-                    'thumb_cmc_flexion', 'thumb_mcp_flexion', 'thumb_mcp_abduction', 'thumb_ip_flexion',
+                    'thumb_cmc_flexion', 'thumb_cmc_abduction', 'thumb_mcp_flexion', 'thumb_ip_flexion',
                     *[f"{finger}_{joint}" 
                       for finger in ['index', 'middle', 'ring', 'pinky'] 
-                      for joint in ['mcp_flexion', 'mcp_abduction', 'pip_flexion', 'dip_flexion']]
+                      for joint in ['mcp_abduction', 'mcp_flexion', 'pip_flexion', 'dip_flexion']]
                 ]
                 joint_angles.attrs['angle_labels'] = angle_labels
                 

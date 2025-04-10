@@ -9,14 +9,20 @@ from collections import deque
 import copy
 
 class RealSenseCollector:
-    def __init__(self):
+    def __init__(self, high_performance=True):
         # 初始化RealSense
         self.pipeline = rs.pipeline()
         self.config = rs.config()
 
+        # 高性能模式标志
+        self.high_performance = high_performance
+        
+        # 根据模式设置不同的帧率
+        fps = 60 if high_performance else 30
+
         #启用深度流
-        self.config.enable_stream(rs.stream.color, 640, 480, rs.format.bgr8, 30)
-        self.config.enable_stream(rs.stream.depth, 640, 480, rs.format.z16, 30)
+        self.config.enable_stream(rs.stream.color, 640, 480, rs.format.bgr8, fps)
+        self.config.enable_stream(rs.stream.depth, 640, 480, rs.format.z16, fps)
 
         # 创建对齐对象
         self.align = rs.align(rs.stream.color)
@@ -55,18 +61,21 @@ class RealSenseCollector:
         self.fps_update_interval = 1.0  # 每秒更新一次帧率
         
     def _init_depth_processing(self) -> None:
-        """初始化深度处理相关设置"""
-        # 创建空间滤波器对象
+        """初始化深度处理相关设置，添加高性能配置"""
+        # 创建空间滤波器对象 - 使用更轻量级的滤波设置
         self.spatial_filter = rs.spatial_filter()
-        self.spatial_filter.set_option(rs.option.filter_magnitude, 2)
-        self.spatial_filter.set_option(rs.option.filter_smooth_alpha, 0.5)
-        self.spatial_filter.set_option(rs.option.filter_smooth_delta, 20)
+        self.spatial_filter.set_option(rs.option.filter_magnitude, 1)
+        self.spatial_filter.set_option(rs.option.filter_smooth_alpha, 0.25)
+        self.spatial_filter.set_option(rs.option.filter_smooth_delta, 10)
         
         # 创建时间滤波器对象
         self.temporal_filter = rs.temporal_filter()
         
         # 创建孔洞填充滤波器
         self.hole_filling_filter = rs.hole_filling_filter()
+        
+        # 高性能模式标志
+        self.high_performance = True
 
     def _update_fps(self, current_time: float) -> None:
         """更新帧率统计"""
@@ -92,9 +101,39 @@ class RealSenseCollector:
     )
               
     def start(self) -> None:
-        """启动相机采集"""
+        """启动相机采集，优化相机参数"""
         print("启动RealSense相机...")
-        self.pipeline.start(self.config)
+        
+        # 启动相机
+        profile = self.pipeline.start(self.config)
+        
+        # 设置相机参数以提高帧率
+        try:
+            # 获取设备和深度传感器
+            device = profile.get_device()
+            depth_sensor = device.first_depth_sensor()
+            
+            # 设置低延迟模式和自动曝光模式
+            if depth_sensor.supports(rs.option.enable_auto_exposure):
+                depth_sensor.set_option(rs.option.enable_auto_exposure, 1)
+                print("已启用自动曝光模式")
+            
+   
+            if depth_sensor.supports(rs.option.enable_motion_correction):
+                depth_sensor.set_option(rs.option.enable_motion_correction, 1)
+                print("已启用运动校正")
+
+            
+            # 如果支持激光器功能，优化激光功率
+            if depth_sensor.supports(rs.option.laser_power):
+                # 设置激光功率为中等水平，平衡性能与准确性
+                max_power = depth_sensor.get_option_range(rs.option.laser_power).max
+                depth_sensor.set_option(rs.option.laser_power, max_power * 0.7)
+                print(f"已优化激光功率: {max_power * 0.7:.1f}")
+
+        except Exception as e:
+            print(f"相机参数优化失败: {e}")
+        
         self.is_running = True
         print("RealSense相机已启动")
 
@@ -130,7 +169,7 @@ class RealSenseCollector:
         self.calculator.draw_hand_coordinate_system(image, origin, rotation_matrix)
         
         # 计算关节角度
-        angles = self.calculator.calculate_joint_angles(landmarks)
+        angles = self.calculator.parallel_calculate_joint_angles(landmarks)
         
         # 绘制手部关键点和连接线
         self.mp_drawing.draw_landmarks(
@@ -146,47 +185,20 @@ class RealSenseCollector:
         
         return angles
     
-    def _enhance_landmarks_raw(self, landmarks, depth_frame, color_image):
-        """原始的深度增强方法（不含平滑）"""
-        enhanced_landmarks = copy.deepcopy(landmarks)
-        h, w = color_image.shape[:2]
-        
-        # 一次性获取所有关键点的像素坐标
-        landmark_pixels = np.array([[int(lm.x * w), int(lm.y * h)] 
-                                  for lm in landmarks.landmark])
-        
-        # 批量检查像素坐标的有效性
-        valid_mask = (landmark_pixels[:, 0] >= 0) & (landmark_pixels[:, 0] < w) & \
-                    (landmark_pixels[:, 1] >= 0) & (landmark_pixels[:, 1] < h)
-        
-        # 获取手腕深度（关键点0）作为参考
-        wrist_px, wrist_py = landmark_pixels[0]
-        wrist_depth = depth_frame.get_distance(wrist_px, wrist_py)
-        if wrist_depth <= 0:
-            wrist_depth = self._get_surrounding_depth(depth_frame, wrist_px, wrist_py)
-        
-        # 处理每个有效的关键点
-        for i, (px, py) in enumerate(landmark_pixels[valid_mask]):
-            # 获取深度值
-            depth = depth_frame.get_distance(px, py)
-            if depth <= 0:
-                depth = self._get_surrounding_depth(depth_frame, px, py)
-            
-            if depth > 0 and wrist_depth > 0:
-                # 计算相对深度
-                relative_depth = depth - wrist_depth
-                
-                # 使用固定缩放因子
-                z_scale_factor = 0.5
-                
-                # 更新z坐标
-                enhanced_landmarks.landmark[i].z += relative_depth * z_scale_factor
-                
-                # 更新可见度
-                enhanced_landmarks.landmark[i].visibility = max(
-                    landmarks.landmark[i].visibility,
-                    0.8
-                )
+
+    
+    
+    def _enhance_landmarks_with_depth(self, landmarks, depth_frame, color_image):
+        """使用深度信息增强手部关键点的空间位置 - 优化版"""
+        smoothed_landmarks = self._smooth_landmarks(landmarks)
+
+        # 如果提供了深度数据，则使用深度增强
+        if depth_frame is not None and color_image is not None:
+            depth_image = np.asanyarray(depth_frame.get_data())
+            enhanced_landmarks = self._enhance_landmarks_with_depth_array(smoothed_landmarks, depth_image, color_image)
+        else:
+            enhanced_landmarks = smoothed_landmarks
+
         
         return enhanced_landmarks
     
@@ -249,32 +261,86 @@ class RealSenseCollector:
         
         return smoothed_landmarks
 
-    def _enhance_landmarks_with_depth(self, landmarks, depth_frame, color_image):
-        """使用深度信息增强手部关键点的空间位置 - 优化版"""
-        # 先进行深度增强
-        enhanced_landmarks = self._enhance_landmarks_raw(landmarks, depth_frame, color_image)
+    def _enhance_landmarks_with_depth_array(self, landmarks, depth_image, color_image):
+        """使用深度图像数组增强手部关键点的空间位置"""
+        enhanced_landmarks = copy.deepcopy(landmarks)
+        h, w = color_image.shape[:2]
+        depth_h, depth_w = depth_image.shape[:2]
         
-        # 对增强后的关键点进行自适应平滑处理
-        smoothed_landmarks = self._smooth_landmarks(enhanced_landmarks)
+        # 调整尺度，确保像素坐标能对应
+        scale_x = depth_w / w if w != depth_w else 1.0
+        scale_y = depth_h / h if h != depth_h else 1.0
         
-        return smoothed_landmarks
+        # 一次性获取所有关键点的像素坐标
+        landmark_pixels = np.array([[int(lm.x * w), int(lm.y * h)] 
+                                  for lm in landmarks.landmark])
+        
+        # 批量检查像素坐标的有效性
+        valid_mask = (landmark_pixels[:, 0] >= 0) & (landmark_pixels[:, 0] < w) & \
+                    (landmark_pixels[:, 1] >= 0) & (landmark_pixels[:, 1] < h)
+        
+        # 获取手腕深度（关键点0）作为参考
+        wrist_px, wrist_py = landmark_pixels[0]
+        depth_px = min(int(wrist_px * scale_x), depth_w - 1)
+        depth_py = min(int(wrist_py * scale_y), depth_h - 1)
+        
+        # 获取深度值 (毫米)，转换为米
+        wrist_depth = depth_image[depth_py, depth_px] * 0.001  # 通常深度值是毫米
+        if wrist_depth <= 0 or wrist_depth > 3.0:  # 3米是一个合理的最大距离
+            wrist_depth = self._get_surrounding_depth_array(depth_image, depth_px, depth_py)
+        
+        # 处理每个有效的关键点
+        for i, (px, py) in enumerate(landmark_pixels):
+            if not valid_mask[i]:
+                continue
+            
+            depth_px = min(int(px * scale_x), depth_w - 1)
+            depth_py = min(int(py * scale_y), depth_h - 1)
+            
+            # 获取深度值
+            depth = depth_image[depth_py, depth_px] * 0.001  # 转换为米
+            if depth <= 0 or depth > 3.0:
+                depth = self._get_surrounding_depth_array(depth_image, depth_px, depth_py)
+            
+            if depth > 0 and wrist_depth > 0:
+                # 计算相对深度
+                relative_depth = depth - wrist_depth
+                
+                # 使用固定缩放因子
+                z_scale_factor = 0.5
+                
+                # 更新z坐标
+                enhanced_landmarks.landmark[i].z += relative_depth * z_scale_factor
+                
+                # 更新可见度
+                enhanced_landmarks.landmark[i].visibility = max(
+                    landmarks.landmark[i].visibility,
+                    0.8
+                )
+        
+        return enhanced_landmarks
 
-    def _get_surrounding_depth(self, depth_frame, x, y, window_size=5):
-        """获取像素周围区域的平均深度值"""
-        valid_depths = []
+    def _get_surrounding_depth_array(self, depth_image, x, y, window_size=5):
+        """从深度图像数组中获取周围区域的平均深度值"""
+        h, w = depth_image.shape[:2]
         half_window = window_size // 2
         
-        for j in range(max(0, y - half_window), min(depth_frame.get_height(), y + half_window + 1)):
-            for i in range(max(0, x - half_window), min(depth_frame.get_width(), x + half_window + 1)):
-                depth = depth_frame.get_distance(i, j)
-                if depth > 0:  # 只考虑有效深度值
-                    valid_depths.append(depth)
+        # 提取窗口区域
+        x_min = max(0, x - half_window)
+        x_max = min(w, x + half_window + 1)
+        y_min = max(0, y - half_window)
+        y_max = min(h, y + half_window + 1)
         
-        if valid_depths:
-            # 使用中位数可以更好地处理异常值
-            return np.median(valid_depths)
+        window = depth_image[y_min:y_max, x_min:x_max]
+        
+        # 过滤有效深度值 (非零且在合理范围内)
+        valid_depths = window[(window > 0) & (window < 3000)]  # 3000mm = 3m
+        
+        if len(valid_depths) > 0:
+            # 返回中位数值（毫米转米）
+            return np.median(valid_depths) * 0.001
         else:
-            return 0.0  # 如果周围没有有效深度，返回0
+            return 0.0
         
     def process_frame(self):
         try:
@@ -284,6 +350,21 @@ class RealSenseCollector:
 
             depth_frame = aligned_frames.get_depth_frame()
             color_frame = aligned_frames.get_color_frame()
+
+
+            # 应用优化的深度滤波链
+            if depth_frame:
+                # 首先应用空间滤波器 - 增强深度图像的空间一致性
+                filtered_depth = self.spatial_filter.process(depth_frame)
+                
+                # 只在非高性能模式下使用更多滤波
+                if not self.high_performance:
+                    # 然后应用时间滤波器 - 减少时间上的波动
+                    filtered_depth = self.temporal_filter.process(filtered_depth)
+                    # 最后应用孔洞填充滤波器 - 填补缺失深度
+                    filtered_depth = self.hole_filling_filter.process(filtered_depth)
+                
+                depth_frame = filtered_depth
 
             if not color_frame or not depth_frame:
                 return

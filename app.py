@@ -27,7 +27,7 @@ def process_realsense():
     """RealSense数据处理线程函数"""
     global realsense_collector
     print("开始处理RealSense数据流")
-    frame_time = 1.0 / 35  # 目标处理帧率略高于相机帧率，设为35FPS
+    frame_time = 1.0 / 60  # 目标处理帧率略高于相机帧率，设为35FPS
     last_process_time = time.perf_counter()
     
     while realsense_collector.is_running:
