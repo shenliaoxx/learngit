@@ -88,18 +88,33 @@ class RealSenseCollector:
             self.last_fps_update = current_time
 
     def _init_hand_tracking(self) -> None:
-        """初始化MediaPipe手部追踪"""
+        """初始化MediaPipe手部追踪，启用GPU加速"""
         self.mp_hands = mp.solutions.hands
         self.mp_drawing = mp.solutions.drawing_utils
         self.mp_drawing_styles = mp.solutions.drawing_styles
+        
+        # 设置 MediaPipe 使用 GPU
         self.hands = self.mp_hands.Hands(
             static_image_mode=False,
             max_num_hands=1,
             model_complexity=1,
             min_detection_confidence=0.7,
-            min_tracking_confidence=0.7
-    )
-              
+            min_tracking_confidence=0.7,
+
+        )
+        
+        # 设置 MediaPipe 的 GPU 选项
+        try:
+            import tensorflow as tf
+            # 允许 GPU 内存增长，避免一次性占用所有 GPU 内存
+            gpus = tf.config.experimental.list_physical_devices('GPU')
+            if gpus:
+                for gpu in gpus:
+                    tf.config.experimental.set_memory_growth(gpu, True)
+                print("MediaPipe GPU 加速已启用")
+        except Exception as e:
+            print(f"GPU 配置失败: {e}")
+
     def start(self) -> None:
         """启动相机采集，优化相机参数"""
         print("启动RealSense相机...")

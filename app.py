@@ -7,10 +7,8 @@ import base64
 import cv2
 from collectors.data_collector_enhance import DataCollector
 from utils.motion_lib import MotionLibrary
-import h5py
-import numpy as np
-import os
 from werkzeug.utils import secure_filename
+
 
 # ===================== 初始化应用 =====================
 app = Flask(__name__)

@@ -1,6 +1,23 @@
 # import numpy as np
 # from scipy import signal
+import tensorflow as tf
 
+import tensorflow as tf
+
+# 检查 TensorFlow 是否能够识别 cuDNN
+print("TensorFlow version:", tf.__version__)
+print("Num GPUs Available:", len(tf.config.list_physical_devices('GPU')))
+
+# 检查 cuDNN 版本
+if tf.test.is_built_with_cuda():
+    print("TensorFlow is built with CUDA.")
+else:
+    print("TensorFlow is NOT built with CUDA.")
+
+if tf.test.is_gpu_available():
+    print("GPU is available.")
+else:
+    print("GPU is NOT available.")
 
 # ########## SNR
 # # import numpy as np
