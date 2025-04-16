@@ -1,6 +1,6 @@
 from flask import Flask, render_template, jsonify, request, send_from_directory
 from collectors.myo_collector import MyoManager
-from collectors.realsense_collector_enhance import RealSenseCollector
+from collectors.realsense_collector import RealSenseCollector
 from threading import Thread
 import time
 import base64
@@ -148,11 +148,15 @@ def get_data():
         })
     
     try:
-        # 获取EMG数据
+        # 获取EMG数据5
         emg_data = myo_manager.get_latest_data()
         
         # 获取手部数据和相机帧
         hand_data = realsense_collector.get_hand_data() or {}
+        # 只返回角度数据
+        if isinstance(hand_data, dict) and 'angles' in hand_data:
+            hand_data = hand_data['angles']
+            
         frame = realsense_collector.get_frame()
         camera_stats = realsense_collector.get_camera_stats()
         

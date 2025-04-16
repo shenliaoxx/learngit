@@ -1003,12 +1003,12 @@
                             `;
                         }
                         
-                        // MCP关节外展
-                        if ('thumb_mcp_abduction' in handData) {
-                            const angle = handData['thumb_mcp_abduction'];
+                        // CMC关节外展
+                        if ('thumb_cmc_abduction' in handData) {
+                            const angle = handData['thumb_cmc_abduction'];
                             html += `
                                 <div class="joint-angle">
-                                    <span><i class="fas fa-angle-right" style="color: var(--primary-color); margin-right: 5px;"></i>MCP关节 外展</span>
+                                    <span><i class="fas fa-angle-right" style="color: var(--primary-color); margin-right: 5px;"></i>CMC关节 外展</span>
                                     <span style="color: var(--primary-color)">${angle.toFixed(1)}°</span>
                                 </div>
                             `;

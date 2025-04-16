@@ -1,0 +1,160 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <style>
+        .diagram-container {
+            width: 1200px;
+            height: 900px;
+            margin: 20px auto;
+            font-family: Arial, sans-serif;
+        }
+        .title {
+            text-align: center;
+            color: #2c3e50;
+            font-size: 28px;
+            margin-bottom: 30px;
+            font-weight: bold;
+        }
+        .subtitle {
+            text-align: center;
+            color: #666;
+            font-size: 16px;
+            margin-bottom: 40px;
+        }
+    </style>
+</head>
+<body>
+<div class="diagram-container">
+    <div class="title">手部深度增强与关节角度约束系统</div>
+    <div class="subtitle">基于MediaPipe的手部跟踪增强与生理约束优化</div>
+    <svg width="1200" height="800">
+        <defs>
+            <!-- 渐变定义 -->
+            <linearGradient id="depthGradient" x1="0%" y1="0%" x2="100%" y2="0%">
+                <stop offset="0%" style="stop-color:#a8e6cf"/>
+                <stop offset="100%" style="stop-color:#3d84a8"/>
+            </linearGradient>
+            <linearGradient id="angleGradient" x1="0%" y1="0%" x2="100%" y2="0%">
+                <stop offset="0%" style="stop-color:#ffd3b6"/>
+                <stop offset="100%" style="stop-color:#ff8b94"/>
+            </linearGradient>
+            <!-- 箭头定义 -->
+            <marker id="arrowhead" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
+                <polygon points="0 0, 10 3.5, 0 7" fill="#2c3e50"/>
+            </marker>
+        </defs>
+
+        <!-- 深度处理流程 -->
+        <g transform="translate(50,50)">
+            <rect x="0" y="0" width="1100" height="310" rx="10" fill="#f8f9fa" stroke="#2c3e50"/>
+            <text x="20" y="30" fill="#2c3e50" font-size="20" font-weight="bold">深度信息增强</text>
+            <text x="20" y="55" fill="#666" font-size="14" font-style="italic">
+                增强MediaPipe原始Z坐标精度，提供更准确的手部深度信息
+            </text>
+            
+            <!-- 深度处理步骤 -->
+            <g transform="translate(50,80)">
+                <rect x="0" y="0" width="200" height="70" rx="5" fill="url(#depthGradient)" stroke="#2c3e50"/>
+                <text x="100" y="35" text-anchor="middle" fill="white">RealSense深度采集</text>
+                <text x="100" y="55" text-anchor="middle" fill="white" font-size="12">高精度深度数据</text>
+                
+                <rect x="250" y="0" width="200" height="70" rx="5" fill="url(#depthGradient)" stroke="#2c3e50"/>
+                <text x="350" y="35" text-anchor="middle" fill="white">空间滤波优化</text>
+                <text x="350" y="55" text-anchor="middle" fill="white" font-size="12">降噪与一致性增强</text>
+                
+                <rect x="500" y="0" width="200" height="70" rx="5" fill="url(#depthGradient)" stroke="#2c3e50"/>
+                <text x="600" y="35" text-anchor="middle" fill="white">时间滤波处理</text>
+                <text x="600" y="55" text-anchor="middle" fill="white" font-size="12">抖动消除</text>
+                
+                <rect x="750" y="0" width="200" height="70" rx="5" fill="url(#depthGradient)" stroke="#2c3e50"/>
+                <text x="850" y="35" text-anchor="middle" fill="white">深度信息融合</text>
+                <text x="850" y="55" text-anchor="middle" fill="white" font-size="12">MediaPipe增强</text>
+
+                <!-- 连接箭头 -->
+                <path d="M200,35 L250,35" stroke="#2c3e50" stroke-width="2" marker-end="url(#arrowhead)"/>
+                <path d="M450,35 L500,35" stroke="#2c3e50" stroke-width="2" marker-end="url(#arrowhead)"/>
+                <path d="M700,35 L750,35" stroke="#2c3e50" stroke-width="2" marker-end="url(#arrowhead)"/>
+                
+                <!-- 深度处理说明 -->
+                <g transform="translate(0,100)">
+                    <text x="0" y="30" fill="#2c3e50" font-size="16" font-weight="bold">原始MediaPipe限制：</text>
+                    <text x="0" y="60" fill="#666" font-size="14">
+                        • Z坐标仅基于2D图像估计，缺乏实际深度信息
+                    </text>
+                    <text x="0" y="90" fill="#666" font-size="14">
+                        • 深度精度低，影响手势识别准确性
+                    </text>
+                    
+                    <text x="500" y="30" fill="#2c3e50" font-size="16" font-weight="bold">深度增强改进：</text>
+                    <text x="500" y="60" fill="#666" font-size="14">
+                        • 融合RealSense实际深度数据
+                    </text>
+                    <text x="500" y="90" fill="#666" font-size="14">
+                        • 多级滤波优化，提供稳定深度信息
+                    </text>
+                    <text x="500" y="120" fill="#666" font-size="14">
+                        • 自适应深度校准，提高跟踪准确性
+                    </text>
+                </g>
+            </g>
+        </g>
+
+        <!-- 关节角度约束系统 -->
+        <g transform="translate(50,400)">
+            <rect x="0" y="0" width="1100" height="350" rx="10" fill="#f8f9fa" stroke="#2c3e50"/>
+            <text x="20" y="30" fill="#2c3e50" font-size="20" font-weight="bold">手部关节角度约束</text>
+            <text x="20" y="55" fill="#666" font-size="14" font-style="italic">
+                从简单角度限制到复杂关节耦合约束的优化
+            </text>
+            
+            <!-- 约束处理步骤 -->
+            <g transform="translate(50,80)">
+                <rect x="0" y="0" width="200" height="70" rx="5" fill="url(#angleGradient)" stroke="#2c3e50"/>
+                <text x="100" y="30" text-anchor="middle" fill="white">手部坐标系建立</text>
+                <text x="100" y="50" text-anchor="middle" fill="white" font-size="12">局部坐标变换</text>
+                
+                <rect x="250" y="0" width="200" height="70" rx="5" fill="url(#angleGradient)" stroke="#2c3e50"/>
+                <text x="350" y="30" text-anchor="middle" fill="white">关节角度计算</text>
+                <text x="350" y="50" text-anchor="middle" fill="white" font-size="12">20个关节实时计算</text>
+                
+                <rect x="500" y="0" width="200" height="70" rx="5" fill="url(#angleGradient)" stroke="#2c3e50"/>
+                <text x="600" y="30" text-anchor="middle" fill="white">生理约束应用</text>
+                <text x="600" y="50" text-anchor="middle" fill="white" font-size="12">复杂约束系统</text>
+
+                <!-- 连接箭头 -->
+                <path d="M200,35 L250,35" stroke="#2c3e50" stroke-width="2" marker-end="url(#arrowhead)"/>
+                <path d="M450,35 L500,35" stroke="#2c3e50" stroke-width="2" marker-end="url(#arrowhead)"/>
+                
+                <!-- 约束系统对比说明 -->
+                <g transform="translate(0,100)">
+                    <text x="0" y="30" fill="#2c3e50" font-size="16" font-weight="bold">原始约束限制：</text>
+                    <text x="0" y="60" fill="#666" font-size="14">
+                        • 仅限制单个关节的运动范围
+                    </text>
+                    <text x="0" y="90" fill="#666" font-size="14">
+                        • 忽略关节间的生理耦合关系
+                    </text>
+                    <text x="0" y="120" fill="#666" font-size="14">
+                        • 无法处理复杂手势姿态
+                    </text>
+
+                    <text x="500" y="30" fill="#2c3e50" font-size="16" font-weight="bold">优化约束系统：</text>
+                    <text x="500" y="60" fill="#666" font-size="14">
+                        • 考虑DIP-PIP关节协同运动
+                    </text>
+                    <text x="500" y="90" fill="#666" font-size="14">
+                        • 实现对握姿态的特殊约束
+                    </text>
+                    <text x="500" y="120" fill="#666" font-size="14">
+                        • 添加手指间外展角度联动
+                    </text>
+                    <text x="500" y="150" fill="#666" font-size="14">
+                        • 卡尔曼滤波实现平滑过渡
+                    </text>
+                </g>
+            </g>
+        </g>
+    </svg>
+</div>
+</body>
+</html>

@@ -83,7 +83,7 @@ class HandAngleCalculator:
     def _get_angle_limits(self, angle_name):
         """获取角度限制"""
         if 'thumb' in angle_name:
-            if 'cmc_flexion' in angle_name: return (-60, 60)
+            if 'cmc_flexion' in angle_name: return (-60, 90)
             if 'mcp_flexion' in angle_name: return (0, 90)
             if 'ip_flexion' in angle_name: return (0, 100)
             if 'abduction' in angle_name: return (-50, 50)
@@ -129,6 +129,197 @@ class HandAngleCalculator:
         kf['P'] = (1 - K) * P_pred
         
         return float(kf['x'])
+
+
+
+
+    def parallel_calculate_joint_angles(self, landmarks):
+        """使用多线程并行计算手部关节角度，优化性能"""
+        try:
+            # 1. 创建手部坐标系
+            origin, rotation_matrix = self.create_hand_coordinate_system(landmarks)
+            
+            # 2. 将关键点转换到局部坐标系
+            local_points = self._transform_to_local_coordinates(landmarks, origin, rotation_matrix)
+            
+            # 3. 使用线程池并行计算各手指角度
+            angles = {}
+            
+            # 并行处理各手指
+            with ThreadPoolExecutor(max_workers=5) as executor:
+                # 拇指角度计算任务
+                thumb_future = executor.submit(
+                    self._calculate_thumb_angles, 
+                    local_points, rotation_matrix
+                )
+                
+                # 其他四指角度计算任务
+                finger_futures = {
+                    finger: executor.submit(
+                        self._calculate_finger_angles, 
+                        finger, local_points, rotation_matrix
+                    ) for finger in ['index', 'middle', 'ring', 'pinky']
+                }
+                
+                # 收集结果
+                angles.update(thumb_future.result())
+                for finger, future in finger_futures.items():
+                    angles.update(future.result())
+            
+            # 4. 应用关节限制和约束
+            constrained_angles = self._apply_joint_constraints(angles)
+            
+            # 5. 应用卡尔曼滤波平滑角度
+            filtered_angles = {k: self.process_angle(k, v) for k, v in constrained_angles.items()}
+            
+            return filtered_angles
+        
+        except Exception as e:
+            print(f"并行计算关节角度错误: {e}")
+            import traceback
+            traceback.print_exc()
+            return {}
+        
+
+    def _calculate_thumb_cmc_angles(self, local_points, rotation_matrix):
+        """计算拇指CMC关节的屈曲和外展角度
+        
+        使用简化的几何方法:
+        1. 屈曲角度: 反向手腕到CMC向量与投影到手掌平面的CMC到MCP向量之间的夹角
+        2. 外展角度: CMC到MCP向量与手掌平面法向量的夹角
+        
+        Args:
+            local_points: 手部关键点的局部坐标
+            rotation_matrix: 手部坐标系的旋转矩阵
+        
+        Returns:
+            tuple: (cmc_flexion, cmc_abduction)
+        """
+        # 1. 提取关键点
+        wrist = local_points[0]  # 手腕
+        thumb_cmc = local_points[1]  # 拇指CMC
+        thumb_mcp = local_points[2]  # 拇指MCP
+        index_mcp = local_points[5]  # 食指MCP
+        middle_mcp = local_points[9]    # 中指MCP
+        pinky_mcp = local_points[17]  # 小指MCP
+        
+        # 2. 计算手掌平面法向量 (使用手腕到食指和手腕到小指的叉积)
+        v1 = index_mcp - wrist
+        v2 = pinky_mcp - wrist
+        n = np.cross(v1, v2)
+        n_normalized = n / np.linalg.norm(n) if np.linalg.norm(n) > 1e-6 else np.zeros(3)
+        
+        # 3. 计算向量a(手腕到CMC)和向量b(CMC到MCP)
+        a = thumb_cmc - wrist
+        b = thumb_mcp - thumb_cmc
+        
+        # 4. 将向量b投影到手掌平面
+        b_proj_plane = b - np.dot(b, n_normalized) * n_normalized
+        
+        reference = middle_mcp - wrist
+        reference_proj = reference - np.dot(reference, n_normalized) * n_normalized
+
+
+        # 5. 计算屈曲角度 (反向向量a与投影后的b的夹角)
+        flexion_angle = 0.0
+        if np.linalg.norm(reference_proj) > 1e-6 and np.linalg.norm(b_proj_plane) > 1e-6:
+            # 归一化向量
+            reference_proj_norm = reference_proj / np.linalg.norm(reference_proj)
+            b_proj_plane_norm = b_proj_plane / np.linalg.norm(b_proj_plane)
+            
+            # 计算夹角
+            cos_theta = np.dot(reference_proj_norm, b_proj_plane_norm)
+            cos_theta = np.clip(cos_theta, -1.0, 1.0)  # 确保在[-1, 1]范围内
+            flexion_angle = np.degrees(np.arccos(cos_theta))
+
+            flex_direction = -np.sign(np.dot(np.cross(reference_proj_norm, b_proj_plane_norm), n_normalized))
+            flexion_angle *= flex_direction
+        
+        # 6. 计算外展角度 (向量b与法向量n的夹角的余弦值)
+        abduction_angle = 0.0
+        if np.linalg.norm(b) > 1e-6:
+            # 计算b与法向量的夹角余弦值 (90°减去夹角)
+            b_normalized = b / np.linalg.norm(b)
+            sin_phi = np.dot(b_normalized, n_normalized)
+            sin_phi = np.clip(sin_phi, -1.0, 1.0)  # 确保在[0, 1]范围内
+            abduction_angle = np.degrees(np.arcsin(sin_phi))
+        
+        # 7. 调试信息
+        print(f"屈曲角度: {flexion_angle:.2f}, 外展角度: {abduction_angle:.2f}")
+        
+        # 8. 应用生理学角度限制
+        # flexion_angle = np.clip(flexion_angle, 0.0, 90)  # 屈曲角度通常为0-90度
+        # abduction_angle = np.clip(abduction_angle, 0.0, 70.0)  # 外展角度通常为0-70度
+        
+        return flexion_angle, abduction_angle
+    
+
+
+
+
+          
+    def _calculate_thumb_angles(self, local_points, rotation_matrix):
+        """计算拇指所有关节角度"""
+        angles = {}
+        
+        # 1. 使用新方法计算CMC关节角度
+        flex_angle, abd_angle = self._calculate_thumb_cmc_angles(
+            local_points,
+            rotation_matrix
+        )
+        angles['thumb_cmc_flexion'] = flex_angle
+        angles['thumb_cmc_abduction'] = abd_angle
+        
+        # 2. 计算其他关节角度（保持原有方法）
+        thumb_chain = self.finger_chains['thumb']
+        cmc_pos = local_points[thumb_chain[1]]
+        mcp_pos = local_points[thumb_chain[2]]
+        ip_pos = local_points[thumb_chain[3]]
+        tip_pos = local_points[thumb_chain[4]]
+        
+        cmc_to_mcp = mcp_pos - cmc_pos
+        mcp_to_ip = ip_pos - mcp_pos
+        ip_to_tip = tip_pos - ip_pos
+        
+        angles['thumb_mcp_flexion'] = self._compute_flexion_angle(
+            cmc_to_mcp, mcp_to_ip, rotation_matrix, 'thumb_mcp'
+        )
+        angles['thumb_mcp_abduction'] = self._compute_abduction_angle(
+            cmc_to_mcp, mcp_to_ip, rotation_matrix[:, 2]
+        )
+        angles['thumb_ip_flexion'] = self._compute_flexion_angle(
+            mcp_to_ip, ip_to_tip, rotation_matrix, 'thumb_ip'
+        )
+        
+        return angles
+
+    
+
+    def _calculate_finger_angles(self, finger_name, local_points, rotation_matrix):
+        """计算单个手指角度的独立任务"""
+        angles = {}
+        
+        chain = self.finger_chains[finger_name]
+        wrist_pos = local_points[chain[0]]
+        mcp_pos = local_points[chain[1]]
+        pip_pos = local_points[chain[2]]
+        dip_pos = local_points[chain[3]]
+        tip_pos = local_points[chain[4]]
+        
+        # 计算向量
+        wrist_to_mcp = mcp_pos - wrist_pos
+        mcp_to_pip = pip_pos - mcp_pos
+        pip_to_dip = dip_pos - pip_pos
+        dip_to_tip = tip_pos - dip_pos
+        
+        # 计算手指角度
+        angles[f'{finger_name}_mcp_flexion'] = self._compute_flexion_angle(wrist_to_mcp, mcp_to_pip, rotation_matrix)
+        angles[f'{finger_name}_mcp_abduction'] = self._compute_abduction_angle(wrist_to_mcp, mcp_to_pip, rotation_matrix[:, 2])
+        angles[f'{finger_name}_pip_flexion'] = self._compute_flexion_angle(mcp_to_pip, pip_to_dip, rotation_matrix)
+        angles[f'{finger_name}_dip_flexion'] = self._compute_flexion_angle(pip_to_dip, dip_to_tip, rotation_matrix)
+        
+        return angles
+
 
     def create_hand_coordinate_system(self, landmarks):
         """创建手部局部坐标系统，更准确稳定地处理外展角度
@@ -196,152 +387,7 @@ class HandAngleCalculator:
             rotation_matrix = u @ vh
         
         return origin, rotation_matrix
-
-    def parallel_calculate_joint_angles(self, landmarks):
-        """使用多线程并行计算手部关节角度，优化性能"""
-        try:
-            # 1. 创建手部坐标系
-            origin, rotation_matrix = self.create_hand_coordinate_system(landmarks)
-            
-            # 2. 将关键点转换到局部坐标系
-            local_points = self._transform_to_local_coordinates(landmarks, origin, rotation_matrix)
-            
-            # 3. 使用线程池并行计算各手指角度
-            angles = {}
-            
-            # 并行处理各手指
-            with ThreadPoolExecutor(max_workers=5) as executor:
-                # 拇指角度计算任务
-                thumb_future = executor.submit(
-                    self._calculate_thumb_angles, 
-                    local_points, rotation_matrix
-                )
-                
-                # 其他四指角度计算任务
-                finger_futures = {
-                    finger: executor.submit(
-                        self._calculate_finger_angles, 
-                        finger, local_points, rotation_matrix
-                    ) for finger in ['index', 'middle', 'ring', 'pinky']
-                }
-                
-                # 收集结果
-                angles.update(thumb_future.result())
-                for finger, future in finger_futures.items():
-                    angles.update(future.result())
-            
-            # 4. 应用关节限制和约束
-            constrained_angles = self._apply_joint_constraints(angles)
-            
-            # 5. 应用卡尔曼滤波平滑角度
-            filtered_angles = {k: self.process_angle(k, v) for k, v in constrained_angles.items()}
-            
-            return filtered_angles
-        
-        except Exception as e:
-            print(f"并行计算关节角度错误: {e}")
-            import traceback
-            traceback.print_exc()
-            return {}
-        
-
-
-    def _calculate_cmc_abduction(self, metacarpal_vec, palm_normal):
-        """计算CMC外展角度
-        使用第一掌骨与手掌平面的夹角来定义外展
-        外展为正，内收为负
-        """
-        if np.linalg.norm(metacarpal_vec) < 1e-6:
-            return 0.0
-        
-        # 单位化向量
-        metacarpal_norm = metacarpal_vec / np.linalg.norm(metacarpal_vec)
-        
-        # 计算与手掌平面的夹角
-        angle_with_normal = np.degrees(np.arccos(
-            np.clip(np.dot(metacarpal_norm, palm_normal), -1.0, 1.0)
-        ))
-        
-        # 计算外展角度（90度减去与法向量的夹角）
-        abd_angle = 90.0 - angle_with_normal
     
-        return abd_angle
-
-
-              
-    def _calculate_thumb_angles(self, local_points, rotation_matrix):
-        """计算拇指关节角度的优化方法"""
-        angles = {}
-        
-        # 1. 获取关键点
-        thumb_chain = self.finger_chains['thumb']
-        wrist_pos = local_points[thumb_chain[0]]
-        cmc_pos = local_points[thumb_chain[1]]
-        mcp_pos = local_points[thumb_chain[2]]
-        ip_pos = local_points[thumb_chain[3]]
-        tip_pos = local_points[thumb_chain[4]]
- 
-        
-        # 2. 计算基础向量
-        wrist_to_cmc = cmc_pos - wrist_pos
-        cmc_to_mcp = mcp_pos - cmc_pos
-        mcp_to_ip = ip_pos - mcp_pos
-        ip_to_tip = tip_pos - ip_pos
- 
-
-
-        # 4. 计算各个角度
-        # CMC屈曲角度保持原有计算方法
-        angles['thumb_cmc_flexion'] = self._compute_flexion_angle(
-            wrist_to_cmc, cmc_to_mcp, rotation_matrix, 'thumb_cmc'
-        )
-        # angles['thumb_cmc_abduction'] = self._compute_abduction_angle(
-        #     wrist_to_cmc, cmc_to_mcp, rotation_matrix[:, 2]
-        # )
-           
-        # CMC外展角度使用新的计算方法
-        angles['thumb_cmc_abduction'] = self._calculate_cmc_abduction(
-            cmc_to_mcp,  # 使用CMC到MCP的向量
-            rotation_matrix[:, 2], # 手掌法向量
-        )
-        
-        # 其他角度保持原有计算方法
-        angles['thumb_mcp_flexion'] = self._compute_flexion_angle(
-            cmc_to_mcp, mcp_to_ip, rotation_matrix, 'thumb_mcp'
-        )
-        angles['thumb_mcp_abduction'] = self._compute_abduction_angle(
-            cmc_to_mcp, mcp_to_ip, rotation_matrix[:, 2]
-        )
-        angles['thumb_ip_flexion'] = self._compute_flexion_angle(
-            mcp_to_ip, ip_to_tip, rotation_matrix, 'thumb_ip'
-        )
-        
-        return angles
-
-    def _calculate_finger_angles(self, finger_name, local_points, rotation_matrix):
-        """计算单个手指角度的独立任务"""
-        angles = {}
-        
-        chain = self.finger_chains[finger_name]
-        wrist_pos = local_points[chain[0]]
-        mcp_pos = local_points[chain[1]]
-        pip_pos = local_points[chain[2]]
-        dip_pos = local_points[chain[3]]
-        tip_pos = local_points[chain[4]]
-        
-        # 计算向量
-        wrist_to_mcp = mcp_pos - wrist_pos
-        mcp_to_pip = pip_pos - mcp_pos
-        pip_to_dip = dip_pos - pip_pos
-        dip_to_tip = tip_pos - dip_pos
-        
-        # 计算手指角度
-        angles[f'{finger_name}_mcp_flexion'] = self._compute_flexion_angle(wrist_to_mcp, mcp_to_pip, rotation_matrix)
-        angles[f'{finger_name}_mcp_abduction'] = self._compute_abduction_angle(wrist_to_mcp, mcp_to_pip, rotation_matrix[:, 2])
-        angles[f'{finger_name}_pip_flexion'] = self._compute_flexion_angle(mcp_to_pip, pip_to_dip, rotation_matrix)
-        angles[f'{finger_name}_dip_flexion'] = self._compute_flexion_angle(pip_to_dip, dip_to_tip, rotation_matrix)
-        
-        return angles
 
 
            
@@ -433,96 +479,6 @@ class HandAngleCalculator:
         
         return constrained_angles
     
-    # def _apply_joint_constraints(self, angles):
-    #     """改进的约束系统，针对对握动作优化"""
-    #     constrained_angles = copy.deepcopy(angles)
-        
-    #     # 检测是否可能处于对握状态
-    #     opposition_mode = False
-    #     opposition_finger = None
-        
-    #     # 1. 检测对握状态 - 通过拇指和其他手指的屈曲角度判断
-    #     if ('thumb_cmc_flexion' in angles and 
-    #         'thumb_mcp_flexion' in angles and 
-    #         'thumb_ip_flexion' in angles):
-            
-    #         thumb_flex_sum = abs(angles['thumb_cmc_flexion']) + angles['thumb_mcp_flexion'] + angles['thumb_ip_flexion']
-            
-    #         # 检查其他手指是否有明显屈曲
-    #         for finger in ['index', 'middle']:
-    #             if (f'{finger}_mcp_flexion' in angles and 
-    #                 f'{finger}_pip_flexion' in angles):
-                    
-    #                 finger_flex = angles[f'{finger}_mcp_flexion'] + angles[f'{finger}_pip_flexion']
-                    
-    #                 # 如果拇指和手指都有适度屈曲，可能是对握
-    #                 if thumb_flex_sum > 50 and finger_flex > 60:
-    #                     opposition_mode = True
-    #                     opposition_finger = finger
-    #                     break
-        
-    #     # 2. 在对握模式下使用特殊约束
-    #     if opposition_mode and opposition_finger:
-            
-    #         # A. 对握时拇指MCP和IP关节协调 - 关键优化点
-    #         if 'thumb_mcp_flexion' in angles and 'thumb_ip_flexion' in angles:
-    #             mcp_flex = angles['thumb_mcp_flexion']
-    #             # 让IP关节有更灵活的屈曲以适应对握
-    #             constrained_angles['thumb_ip_flexion'] = max(
-    #                 angles['thumb_ip_flexion'],
-    #                 min(80, mcp_flex * 0.8)  # IP屈曲至少为MCP的80%
-    #             )
-            
-    #         # B. 对握时禁用DIP-PIP耦合约束
-    #         # 仅保留最小限度的约束以防止不自然姿势
-    #         for finger in ['index', 'middle', 'ring', 'pinky']:
-    #             if (f'{finger}_pip_flexion' in angles and 
-    #                 f'{finger}_dip_flexion' in angles):
-                    
-    #                 pip_angle = angles[f'{finger}_pip_flexion']
-    #                 dip_angle = angles[f'{finger}_dip_flexion']
-                    
-    #                 # 只确保DIP不小于PIP的一定比例，不硬性设定值
-    #                 min_dip = pip_angle * 0.4
-    #                 if dip_angle < min_dip:
-    #                     constrained_angles[f'{finger}_dip_flexion'] = min_dip
-            
-    #         # C. 对握指间关节协调 - 确保对握手指的指尖有适当弯曲
-    #         if f'{opposition_finger}_pip_flexion' in angles and f'{opposition_finger}_dip_flexion' in angles:
-    #             pip_angle = angles[f'{opposition_finger}_pip_flexion']
-    #             # 对握时允许DIP更灵活，而非严格遵循比例
-    #             if pip_angle > 45:
-    #                 # 对握时保持指尖适当弯曲
-    #                 min_dip = 20
-    #                 if angles[f'{opposition_finger}_dip_flexion'] < min_dip:
-    #                     constrained_angles[f'{opposition_finger}_dip_flexion'] = min_dip
-        
-    #     else:
-    #         # 3. 非对握模式下保留少量基础约束
-    #         # 仅应用最基本的生理约束，避免不自然的姿势
-    #         for finger in ['index', 'middle', 'ring', 'pinky']:
-    #             if f'{finger}_pip_flexion' in angles and f'{finger}_dip_flexion' in angles:
-    #                 pip_angle = angles[f'{finger}_pip_flexion']
-    #                 dip_angle = angles[f'{finger}_dip_flexion']
-                    
-    #                 # 只应用最低限度的约束：DIP不应超过PIP的2倍
-    #                 if dip_angle > pip_angle * 2:
-    #                     constrained_angles[f'{finger}_dip_flexion'] = pip_angle * 2
-        
-    #     # 4. 外展角度联动(保留原来的)
-    #     if 'index_mcp_abduction' in angles:
-    #         for finger, factor in zip(['middle', 'ring', 'pinky'], [0.7, 0.5, 0.6]):
-    #             key = f'{finger}_mcp_abduction'
-    #             if key in angles:
-    #                 if abs(angles[key]) < abs(angles['index_mcp_abduction'] * factor * 0.5):
-    #                     constrained_angles[key] = angles['index_mcp_abduction'] * factor * 0.5
-        
-    #     # 5. 应用角度限制
-    #     for key, value in constrained_angles.items():
-    #         limits = self._get_angle_limits(key)
-    #         constrained_angles[key] = np.clip(value, limits[0], limits[1])
-        
-    #     return constrained_angles
 
 
     def draw_hand_coordinate_system(self, image, origin, rotation_matrix, scale=100):
@@ -559,38 +515,108 @@ class HandAngleCalculator:
 
 
 
-    # def create_hand_coordinate_system(self, landmarks):
-    #     """创建手部局部坐标系统，更准确处理外展角度"""
-    #     points = np.array([[lm.x, lm.y, lm.z] for lm in landmarks.landmark])
-    #     origin = points[0]  # 手腕作为原点
-        
-    #     # 手掌基本向量：掌心中心到手腕
-    #     mcp_points = points[[5, 9, 13, 17]]  # 使用食指到小指的MCP关节
-    #     palm_center = np.mean(mcp_points, axis=0)
-    #     wrist_to_palm = palm_center - origin
-        
-    #     # Y轴：手腕到中指MCP的方向
-    #     y_axis_temp = points[9] - origin
-        
-    #     # Z轴：手掌法向量 (使用叉积)
-    #     # 使用两个向量：手腕到食指MCP，手腕到小指MCP
-    #     v1 = points[5] - origin  # 手腕到食指MCP
-    #     v2 = points[17] - origin  # 手腕到小指MCP
-    #     z_axis = np.cross(v1, v2)
-        
-    #     # 确保Z轴与掌心垂直，方向朝外
-    #     if np.dot(z_axis, y_axis_temp) > 0:
-    #         z_axis = -z_axis
-    #     z_axis = z_axis / np.linalg.norm(z_axis)
-        
-    #     # 修正Y轴，确保与Z轴垂直
-    #     y_axis = wrist_to_palm - np.dot(wrist_to_palm, z_axis) * z_axis
-    #     y_axis = y_axis / np.linalg.norm(y_axis)
-        
-    #     # X轴：使用右手坐标系规则
-    #     x_axis = np.cross(y_axis, z_axis)
-    #     x_axis = x_axis / np.linalg.norm(x_axis)
 
+    # def _calculate_thumb_cmc_angles(self, local_points, rotation_matrix):
+    #     """计算拇指CMC关节的屈曲和外展角度
         
-    #     # 返回原点和旋转矩阵
-    #     return origin, np.column_stack((x_axis, y_axis, z_axis))
+    #     使用简化的几何方法:
+    #     1. 屈曲角度: 反向手腕到CMC向量与投影到手掌平面的CMC到MCP向量之间的夹角
+    #     2. 外展角度: CMC到MCP向量与手掌平面法向量的夹角
+        
+    #     Args:
+    #         local_points: 手部关键点的局部坐标
+    #         rotation_matrix: 手部坐标系的旋转矩阵
+        
+    #     Returns:
+    #         tuple: (cmc_flexion, cmc_abduction)
+    #     """
+    #     # 1. 提取关键点
+    #     wrist = local_points[0]  # 手腕
+    #     thumb_cmc = local_points[1]  # 拇指CMC
+    #     thumb_mcp = local_points[2]  # 拇指MCP
+    #     index_mcp = local_points[5]  # 食指MCP
+    #     pinky_mcp = local_points[17]  # 小指MCP
+        
+    #     # 2. 计算手掌平面法向量 (使用手腕到食指和手腕到小指的叉积)
+    #     v1 = index_mcp - wrist
+    #     v2 = pinky_mcp - wrist
+    #     n = np.cross(v1, v2)
+    #     n_normalized = n / np.linalg.norm(n) if np.linalg.norm(n) > 1e-6 else np.zeros(3)
+        
+    #     # 3. 计算向量a(手腕到CMC)和向量b(CMC到MCP)
+    #     a = thumb_cmc - wrist
+    #     b = thumb_mcp - thumb_cmc
+        
+    #     # 4. 将向量b投影到手掌平面
+    #     b_proj_plane = b - np.dot(b, n_normalized) * n_normalized
+        
+    #     # 5. 计算屈曲角度 (反向向量a与投影后的b的夹角)
+    #     a_reversed = -a  # 反向手腕到CMC的向量
+    #     flexion_angle = 0.0
+    #     if np.linalg.norm(a_reversed) > 1e-6 and np.linalg.norm(b_proj_plane) > 1e-6:
+    #         # 归一化向量
+    #         a_reversed_norm = a_reversed / np.linalg.norm(a_reversed)
+    #         b_proj_plane_norm = b_proj_plane / np.linalg.norm(b_proj_plane)
+            
+    #         # 计算夹角
+    #         cos_theta = np.dot(a_reversed_norm, b_proj_plane_norm)
+    #         cos_theta = np.clip(cos_theta, -1.0, 1.0)  # 确保在[-1, 1]范围内
+    #         flexion_angle = np.degrees(np.arccos(cos_theta))
+        
+    #     # 6. 计算外展角度 (向量b与法向量n的夹角的余弦值)
+    #     abduction_angle = 0.0
+    #     if np.linalg.norm(b) > 1e-6:
+    #         # 计算b与法向量的夹角余弦值 (90°减去夹角)
+    #         b_normalized = b / np.linalg.norm(b)
+    #         sin_phi = np.dot(b_normalized, n_normalized)
+    #         sin_phi = np.clip(sin_phi, -1.0, 1.0)  # 确保在[0, 1]范围内
+    #         abduction_angle = np.degrees(np.arcsin(sin_phi))
+        
+    #     # 7. 调试信息
+    #     print(f"屈曲角度: {flexion_angle:.2f}, 外展角度: {abduction_angle:.2f}")
+        
+    #     # 8. 应用生理学角度限制
+    #     flexion_angle = np.clip(flexion_angle, 0.0, 90)  # 屈曲角度通常为0-90度
+    #     abduction_angle = np.clip(abduction_angle, 0.0, 70.0)  # 外展角度通常为0-70度
+        
+    #     return flexion_angle, abduction_angle
+    
+
+
+
+
+          
+    # def _calculate_thumb_angles(self, local_points, rotation_matrix):
+    #     """计算拇指所有关节角度"""
+    #     angles = {}
+        
+    #     # 1. 使用新方法计算CMC关节角度
+    #     flex_angle, abd_angle = self._calculate_thumb_cmc_angles(
+    #         local_points,
+    #         rotation_matrix
+    #     )
+    #     angles['thumb_cmc_flexion'] = flex_angle
+    #     angles['thumb_cmc_abduction'] = abd_angle
+        
+    #     # 2. 计算其他关节角度（保持原有方法）
+    #     thumb_chain = self.finger_chains['thumb']
+    #     cmc_pos = local_points[thumb_chain[1]]
+    #     mcp_pos = local_points[thumb_chain[2]]
+    #     ip_pos = local_points[thumb_chain[3]]
+    #     tip_pos = local_points[thumb_chain[4]]
+        
+    #     cmc_to_mcp = mcp_pos - cmc_pos
+    #     mcp_to_ip = ip_pos - mcp_pos
+    #     ip_to_tip = tip_pos - ip_pos
+        
+    #     angles['thumb_mcp_flexion'] = self._compute_flexion_angle(
+    #         cmc_to_mcp, mcp_to_ip, rotation_matrix, 'thumb_mcp'
+    #     )
+    #     angles['thumb_mcp_abduction'] = self._compute_abduction_angle(
+    #         cmc_to_mcp, mcp_to_ip, rotation_matrix[:, 2]
+    #     )
+    #     angles['thumb_ip_flexion'] = self._compute_flexion_angle(
+    #         mcp_to_ip, ip_to_tip, rotation_matrix, 'thumb_ip'
+    #     )
+        
+    #     return angles
